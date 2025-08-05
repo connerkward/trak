@@ -1,0 +1,80 @@
+{
+  "name": "@every-time/timer-tracker",
+  "author": "Every Time Team",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mac menu bar timer tracker with Google Calendar integration",
+  "scripts": {
+    "dev:web": "vite --port 5173",
+    "dev:electron": "concurrently \"tsc -p tsconfig.desktop.json -w\" \"vite build --watch\" \"wait-on dist/desktop/main.js && cp desktop/preload.js dist/desktop/ && wait-on dist/renderer/index.html && electron . --dev\"",
+    "build": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build",
+    "build:desktop": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/",
+    "build:renderer": "vite build",
+    "build:electron": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
+    "rebuild:electron": "pkill -f 'Timer Tracker' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
+    "start": "electron .",
+    "postinstall": "electron-builder install-app-deps",
+    "convert-icons": "node scripts/convert-icons.js"
+  },
+  "main": "dist/desktop/main.js",
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "electron-store": "^8.1.0",
+    "google-auth-library": "^10.2.1",
+    "googleapis": "^126.0.1",
+    "googleapis-common": "^8.0.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.2.0",
+    "electron": "^26.2.1",
+    "electron-builder": "^24.6.4",
+    "postcss": "^8.4.27",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sharp": "^0.34.3",
+    "tailwindcss": "^3.3.3",
+    "tsx": "^4.20.3",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5",
+    "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.everytime.timer-tracker",
+    "productName": "Timer Tracker",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "src/**/*",
+      "public/**/*",
+      "assets/**/*",
+      ".env",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "asar": false,
+    "icon": "assets/app-icon.png",
+    "mac": {
+      "icon": "assets/app-icon.png",
+      "category": "public.app-category.productivity",
+      "target": {
+        "target": "dmg",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      "extendInfo": {
+        "LSUIElement": 1,
+        "LSBackgroundOnly": false
+      }
+    }
+  }
+}

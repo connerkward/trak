@@ -1,0 +1,449 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.settings-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  margin: 0 auto !important;
+  padding: 12px !important;
+  background: var(--bg-color) !important;
+  color: var(--text-color) !important;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.4;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  width: 100% !important;
+  height: 100vh !important;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.header {
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.section h2 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-color);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+  color: var(--text-color);
+  font-size: 12px;
+}
+
+.form-group input[type="text"],
+.form-group select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 12px;
+  box-sizing: border-box;
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-family: inherit;
+}
+
+.form-group input[type="text"]:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--blue-color);
+}
+
+.btn {
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  background: var(--button-bg);
+  color: var(--text-color);
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background: var(--button-hover-bg);
+}
+
+.btn-primary {
+  background: var(--blue-color);
+  color: white;
+  border-color: var(--blue-color);
+}
+
+.btn-primary:hover {
+  background: var(--blue-hover-color);
+}
+
+.btn-danger {
+  background: var(--red-color);
+  color: white;
+  border-color: var(--red-color);
+}
+
+.btn-danger:hover {
+  background: var(--red-hover-color);
+}
+
+.btn-secondary {
+  background: var(--secondary-button-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--secondary-button-hover-bg);
+}
+
+
+
+.calendar-list,
+.timer-list {
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--list-bg);
+}
+
+.calendar-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-item:hover {
+  background-color: var(--hover-color);
+}
+
+.calendar-item:last-child {
+  border-bottom: none;
+}
+
+.calendar-info {
+  flex: 1;
+}
+
+.calendar-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: var(--text-color);
+  font-size: 13px;
+}
+
+.calendar-details {
+  font-size: 11px;
+  color: var(--secondary-text-color);
+}
+
+.calendar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.toggle-switch.active {
+  background: var(--blue-color);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.active::after {
+  transform: translateX(16px);
+}
+
+.timer-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.timer-item:hover {
+  background-color: var(--hover-color);
+}
+
+.timer-item:last-child {
+  border-bottom: none;
+}
+
+.timer-info {
+  margin-bottom: 6px;
+}
+
+.timer-name {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: var(--text-color);
+  font-size: 13px;
+}
+
+.timer-calendar {
+  font-size: 11px;
+  color: var(--secondary-text-color);
+  word-break: break-all;
+}
+
+.timer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--secondary-text-color);
+  font-size: 13px;
+}
+
+.help-text {
+  font-size: 11px;
+  color: var(--secondary-text-color);
+  margin-top: 6px;
+}
+
+/* Light mode variables */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --secondary-text-color: #86868b;
+  --border-color: #e5e5e7;
+  --hover-color: #f5f5f7;
+  --input-bg: #ffffff;
+  --list-bg: #ffffff;
+  --button-bg: #f5f5f7;
+  --button-hover-bg: #e5e5e7;
+  --secondary-button-bg: #f5f5f7;
+  --secondary-button-hover-bg: #e5e5e7;
+  --blue-color: #007AFF;
+  --blue-hover-color: #0056CC;
+  --red-color: #ff3b30;
+  --red-hover-color: #dc3545;
+
+}
+
+/* Dark mode variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1c1c1e;
+    --text-color: #ffffff;
+    --secondary-text-color: #8e8e93;
+    --border-color: #38383a;
+    --hover-color: #2c2c2e;
+    --input-bg: #2c2c2e;
+    --list-bg: #2c2c2e;
+    --button-bg: #3a3a3c;
+    --button-hover-bg: #48484a;
+    --secondary-button-bg: #3a3a3c;
+    --secondary-button-hover-bg: #48484a;
+    --blue-color: #0a84ff;
+    --blue-hover-color: #409cff;
+    --red-color: #ff453a;
+    --red-hover-color: #ff6961;
+    
+  }
+}
+
+/* Device Authorization Styles */
+.device-auth-container {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.device-auth-steps {
+  flex: 1;
+}
+
+.auth-step {
+  margin: 16px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #4285f4;
+}
+
+.auth-step strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #1f2937;
+}
+
+.auth-url {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 8px;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+.auth-url a {
+  color: #4285f4;
+  text-decoration: none;
+}
+
+.auth-url a:hover {
+  text-decoration: underline;
+}
+
+.device-code {
+  background: #1f2937;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-align: center;
+  border: 2px solid #4285f4;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-placeholder {
+  background: #f3f4f6;
+  border: 2px dashed #9ca3af;
+  border-radius: 8px;
+  padding: 24px;
+  margin-top: 8px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.auth-status {
+  flex: 0 0 200px;
+  text-align: center;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.spinner {
+  font-size: 32px;
+  margin-bottom: 16px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.auth-status p {
+  margin: 8px 0;
+}
+
+.auth-status .help-text {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+/* Responsive Device Auth */
+/* Auth code section */
+.auth-code-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--secondary-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.auth-buttons .btn {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .device-auth-container {
+    flex-direction: column;
+  }
+  
+  .auth-status {
+    flex: none;
+  }
+  
+  .device-code {
+    font-size: 20px;
+  }
+  
+  .auth-buttons {
+    flex-direction: column;
+  }
+  
+  .auth-buttons .btn {
+    flex: none;
+  }
+}
