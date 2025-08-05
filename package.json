@@ -6,10 +6,12 @@
   "description": "Mac menu bar timer tracker with Google Calendar integration",
   "scripts": {
     "dev:web": "vite --port 5173",
+    "dev:landing": "cd landing-page && vite --port 5174",
     "dev:electron": "concurrently \"tsc -p tsconfig.desktop.json -w\" \"vite build --watch\" \"wait-on dist/desktop/main.js && cp desktop/preload.js dist/desktop/ && wait-on dist/renderer/index.html && electron . --dev\"",
     "build": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build",
     "build:desktop": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/",
     "build:renderer": "vite build",
+    "build:landing": "cd landing-page && vite build",
     "build:electron": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
     "rebuild:electron": "pkill -f 'Timer Tracker' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
     "start": "electron .",
