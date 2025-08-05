@@ -8,28 +8,43 @@ const DownloadSection = () => {
     setIsDownloading(true);
     setDownloadProgress(0);
     
-    // Simulate download progress
-    const interval = setInterval(() => {
-      setDownloadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsDownloading(false);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
-    // In a real implementation, this would trigger the actual DMG download
-    // For now, we'll simulate it
-    setTimeout(() => {
-      clearInterval(interval);
-      setIsDownloading(false);
-      setDownloadProgress(100);
+    try {
+      // Get the DMG file from the downloads directory
+      const dmgUrl = process.env.NODE_ENV === 'production' 
+        ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
+        : '/downloads/Timer Tracker-1.0.0.dmg';
       
-      // Show success message
-      alert('Download completed! Check your Downloads folder for the DMG file.');
-    }, 2000);
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = dmgUrl;
+      link.download = 'Timer Tracker-1.0.0.dmg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Simulate progress for better UX
+      const interval = setInterval(() => {
+        setDownloadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsDownloading(false);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
+      
+      setTimeout(() => {
+        clearInterval(interval);
+        setIsDownloading(false);
+        setDownloadProgress(100);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      setIsDownloading(false);
+      alert('Download failed. Please try again.');
+    }
   };
 
   const systemRequirements = [

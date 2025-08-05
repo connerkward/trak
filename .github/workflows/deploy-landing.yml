@@ -1,14 +1,16 @@
-name: Deploy Landing Page to GitHub Pages
+name: Build and Deploy Landing Page & Desktop App
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'landing-page/**'
-      - 'src/App.css'
+      - 'src/**'
+      - 'desktop/**'
       - 'assets/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
+      - 'scripts/**'
   workflow_dispatch:
 
 permissions:
@@ -21,8 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-desktop:
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,8 +42,49 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build desktop app
+        run: pnpm build:electron
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: timer-tracker-dmg
+          path: dist-electron/*.dmg
+          retention-days: 30
+
+  build-landing:
+    runs-on: ubuntu-latest
+    needs: build-desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: timer-tracker-dmg
+          path: ./landing-page/public
+
       - name: Build landing page for GitHub Pages
         run: pnpm build:landing:gh-pages
+
+      - name: Copy DMG to docs for GitHub Pages
+        run: |
+          mkdir -p docs/downloads
+          cp landing-page/public/*.dmg docs/downloads/ || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -56,7 +99,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-landing
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

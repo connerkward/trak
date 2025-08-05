@@ -8,6 +8,19 @@ const Header = ({ isScrolled }) => {
     });
   };
 
+  const handleDirectDownload = () => {
+    const dmgUrl = process.env.NODE_ENV === 'production' 
+      ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
+      : '/downloads/Timer Tracker-1.0.0.dmg';
+    
+    const link = document.createElement('a');
+    link.href = dmgUrl;
+    link.download = 'Timer Tracker-1.0.0.dmg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
@@ -21,7 +34,7 @@ const Header = ({ isScrolled }) => {
           <a href="#download" className="nav-link">Download</a>
         </nav>
 
-        <button className="header-download-btn" onClick={handleDownload}>
+        <button className="header-download-btn" onClick={handleDirectDownload}>
           Download for Mac
         </button>
       </div>

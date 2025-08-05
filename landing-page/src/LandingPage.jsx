@@ -17,6 +17,19 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleHeroDownload = () => {
+    const dmgUrl = process.env.NODE_ENV === 'production' 
+      ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
+      : '/downloads/Timer Tracker-1.0.0.dmg';
+    
+    const link = document.createElement('a');
+    link.href = dmgUrl;
+    link.download = 'Timer Tracker-1.0.0.dmg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="landing-page">
       <Header isScrolled={isScrolled} />
@@ -31,7 +44,7 @@ const LandingPage = () => {
                 Track time directly from your menu bar. Simple, fast, and always accessible.
               </p>
               <div className="hero-actions">
-                <button className="download-btn primary">
+                <button className="download-btn primary" onClick={handleHeroDownload}>
                   <span className="download-icon">⬇</span>
                   Download for Mac
                 </button>
