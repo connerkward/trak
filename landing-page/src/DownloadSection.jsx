@@ -14,6 +14,12 @@ const DownloadSection = () => {
         ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
         : '/downloads/Timer Tracker-1.0.0.dmg';
       
+      // Check if the file exists first
+      const response = await fetch(dmgUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error('DMG file not available yet. Please try again later.');
+      }
+      
       // Create a temporary link and trigger download
       const link = document.createElement('a');
       link.href = dmgUrl;
@@ -43,7 +49,7 @@ const DownloadSection = () => {
     } catch (error) {
       console.error('Download failed:', error);
       setIsDownloading(false);
-      alert('Download failed. Please try again.');
+      alert(error.message || 'Download failed. Please try again.');
     }
   };
 

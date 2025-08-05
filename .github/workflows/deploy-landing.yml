@@ -91,6 +91,10 @@ jobs:
         run: |
           mkdir -p docs/downloads
           cp landing-page/public/*.dmg docs/downloads/ || true
+          
+      - name: Copy screenshot to docs for README
+        run: |
+          cp landing-page/landing-page.png docs/landing-page-screenshot.png || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

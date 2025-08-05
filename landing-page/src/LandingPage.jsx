@@ -17,17 +17,29 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleHeroDownload = () => {
-    const dmgUrl = process.env.NODE_ENV === 'production' 
-      ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
-      : '/downloads/Timer Tracker-1.0.0.dmg';
-    
-    const link = document.createElement('a');
-    link.href = dmgUrl;
-    link.download = 'Timer Tracker-1.0.0.dmg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleHeroDownload = async () => {
+    try {
+      const dmgUrl = process.env.NODE_ENV === 'production' 
+        ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
+        : '/downloads/Timer Tracker-1.0.0.dmg';
+      
+      // Check if the file exists first
+      const response = await fetch(dmgUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        alert('DMG file not available yet. Please try again later.');
+        return;
+      }
+      
+      const link = document.createElement('a');
+      link.href = dmgUrl;
+      link.download = 'Timer Tracker-1.0.0.dmg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Download failed. Please try again.');
+    }
   };
 
   return (
