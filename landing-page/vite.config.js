@@ -5,8 +5,9 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   root: '.',
+  base: process.env.NODE_ENV === 'production' ? '/trak/' : '/',
   build: {
-    outDir: '../dist/landing-page',
+    outDir: '../docs',
     emptyOutDir: true,
     rollupOptions: {
       input: {

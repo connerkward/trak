@@ -12,6 +12,7 @@
     "build:desktop": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/",
     "build:renderer": "vite build",
     "build:landing": "cd landing-page && vite build",
+    "build:landing:gh-pages": "cd landing-page && NODE_ENV=production vite build",
     "build:electron": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
     "rebuild:electron": "pkill -f 'Timer Tracker' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
     "start": "electron .",

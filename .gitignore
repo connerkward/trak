@@ -5,11 +5,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Lockfiles - these SHOULD be committed
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
-
 # Build outputs
 dist/
 dist-electron/
