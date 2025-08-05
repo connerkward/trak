@@ -44,6 +44,7 @@ jobs:
 
       - name: Build desktop app
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DIST_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
