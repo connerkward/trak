@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { downloadDMG } from './utils/downloadUtils';
 
 const DownloadSection = () => {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -9,24 +10,7 @@ const DownloadSection = () => {
     setDownloadProgress(0);
     
     try {
-      // Get the DMG file from the downloads directory
-      const dmgUrl = process.env.NODE_ENV === 'production' 
-        ? '/trak/downloads/Timer Tracker-1.0.0.dmg'
-        : '/downloads/Timer Tracker-1.0.0.dmg';
-      
-      // Check if the file exists first
-      const response = await fetch(dmgUrl, { method: 'HEAD' });
-      if (!response.ok) {
-        throw new Error('DMG file not available yet. Please try again later.');
-      }
-      
-      // Create a temporary link and trigger download
-      const link = document.createElement('a');
-      link.href = dmgUrl;
-      link.download = 'Timer Tracker-1.0.0.dmg';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await downloadDMG();
       
       // Simulate progress for better UX
       const interval = setInterval(() => {
@@ -69,7 +53,7 @@ const DownloadSection = () => {
 
         <div className="download-card">
           <div className="download-info">
-            <img src="/app-icon.png" alt="Timer Tracker" className="download-app-icon" />
+            <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Timer Tracker" className="download-app-icon" />
             <div className="download-details">
               <h3>Timer Tracker</h3>
               <p className="version">Version 1.0.0</p>

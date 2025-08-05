@@ -1,7 +1,7 @@
 # Timer Tracker
 
 <div align="center">
-  <img src="docs/landing-page-screenshot.png" alt="Timer Tracker Landing Page" width="800" />
+  <img src="landing-page/landing-page.png" alt="Timer Tracker Landing Page" width="800" />
   <p><em>Timer Tracker - Mac menu bar time tracking with Google Calendar integration</em></p>
 </div>
 

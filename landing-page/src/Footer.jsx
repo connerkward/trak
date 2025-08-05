@@ -6,7 +6,7 @@ const Footer = () => {
       <div className="footer-content">
         <div className="footer-section">
           <div className="footer-logo">
-            <img src="/app-icon.png" alt="Timer Tracker" className="footer-icon" />
+            <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Timer Tracker" className="footer-icon" />
             <span>Timer Tracker</span>
           </div>
           <p className="footer-description">
