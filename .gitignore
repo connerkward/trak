@@ -117,3 +117,7 @@ token.json
 test-results/
 playwright-report/
 test-results.xml 
+
+dist-bundle/
+
+docs/

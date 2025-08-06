@@ -20,7 +20,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'landing-page/src')
+      '@': resolve(__dirname, 'src')
     }
   },
   publicDir: 'public'

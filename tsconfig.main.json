@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.desktop.json",
+  "compilerOptions": {
+    "outDir": "./dist/desktop",
+    "rootDir": "./desktop",
+    "sourceMap": true,
+    "declaration": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo-main"
+  },
+  "include": [
+    "desktop/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}
