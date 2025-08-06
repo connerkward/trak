@@ -148,7 +148,7 @@ html, body {
   display: inline-block;
   width: 240px; /* Adjusted for -ing words */
   height: 4.2rem; /* Match the h1 line height */
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 /* Typewriter text styles */
