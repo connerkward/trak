@@ -56,7 +56,7 @@ export class GoogleCalendarService {
       clientIdLength: this.clientId?.length || 0,
       clientSecretLength: this.clientSecret?.length || 0,
       hasValidCredentials,
-      isDev: typeof require !== 'undefined' && require('electron')?.app ? !require('electron').app.isPackaged : true
+      isDev: __dirname.includes('dist/desktop') || __dirname.includes('dist-bundle')
     });
     
     if (!hasValidCredentials) {

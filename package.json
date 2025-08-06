@@ -13,15 +13,11 @@
     "build:renderer": "vite build",
     "build:landing": "vite --config landing-page/vite.config.js build && cp landing-page/public/header-logo.png docs/ && cp landing-page/public/app-icon.png docs/assets/",
     "build:landing:gh-pages": "cd landing-page && NODE_ENV=production pnpm vite build",
-    "bundle-main": "ncc build desktop/main.ts -o dist-bundle",
     "build:electron": "node scripts/convert-icons.js && pnpm run bundle-main && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
     "build:electron:ci": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && electron-builder",
     "rebuild:electron": "pkill -f 'Dingo Track' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
-    "start": "electron .",
     "postinstall": "electron-builder install-app-deps",
-    "convert-icons": "node scripts/convert-icons.js",
-    "check-deps": "depcheck --json --ignore-bin-package true 2>/dev/null",
-    "fix-deps": "pnpm run check-deps | jq -r '.missing[]' | xargs -r pnpm add -w"
+    "convert-icons": "node scripts/convert-icons.js"
   },
   "main": "dist-bundle/index.js",
   "dependencies": {

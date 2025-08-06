@@ -61,6 +61,7 @@ jobs:
   build-and-deploy-landing:
     runs-on: ubuntu-latest
     needs: build-desktop
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +84,7 @@ jobs:
         with:
           name: dingo-track-dmg
           path: ./landing-page/public
+        continue-on-error: true
 
       - name: Build icons
         run: pnpm convert-icons
@@ -93,15 +95,20 @@ jobs:
       - name: Setup downloads directory and copy assets
         run: |
           mkdir -p docs/downloads
-          cp landing-page/public/*.dmg docs/downloads/ || true
+          cp landing-page/public/*.dmg docs/downloads/ 2>/dev/null || echo "No DMG files found - landing page will deploy without download links"
           cp landing-page/landing-page.png docs/landing-page-screenshot.png || true
-          ls -la docs/downloads/
-          echo "Available downloads:" > docs/downloads/README.md
-          for file in docs/downloads/*.dmg; do
-            if [ -f "$file" ]; then
-              echo "- [$(basename "$file")](./$(basename "$file"))" >> docs/downloads/README.md
-            fi
-          done
+          ls -la docs/downloads/ || true
+          echo "# Available Downloads" > docs/downloads/README.md
+          if ls docs/downloads/*.dmg 1> /dev/null 2>&1; then
+            echo "Desktop application downloads:" >> docs/downloads/README.md
+            for file in docs/downloads/*.dmg; do
+              if [ -f "$file" ]; then
+                echo "- [$(basename "$file")](./$(basename "$file"))" >> docs/downloads/README.md
+              fi
+            done
+          else
+            echo "No downloads available yet. Check back later for the latest desktop app." >> docs/downloads/README.md
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -117,6 +124,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build-and-deploy-landing
+    if: always() && needs.build-and-deploy-landing.result == 'success'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
