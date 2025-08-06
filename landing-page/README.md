@@ -1,6 +1,6 @@
-# Timer Tracker Landing Page
+# Dingo Track Landing Page
 
-This is the landing page for the Timer Tracker Mac app, built with React and Vite.
+This is the landing page for the Dingo Track Mac app, built with React and Vite.
 
 ## Development
 
@@ -36,7 +36,7 @@ The workflow:
 ## Download Links
 
 The DMG file will be available at:
-- Development: `/downloads/Timer Tracker-1.0.0.dmg`
-- Production: `/trak/downloads/Timer Tracker-1.0.0.dmg`
+- Development: `/downloads/Dingo Track-1.0.0.dmg`
+- Production: `/trak/downloads/Dingo Track-1.0.0.dmg`
 
 All download buttons on the landing page will automatically use the correct URL based on the environment. 

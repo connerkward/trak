@@ -1,12 +1,12 @@
 {
-  "name": "@every-time/timer-tracker",
+  "name": "@every-time/dingo-track",
   "author": "Every Time Team",
   "version": "1.0.0",
   "private": true,
-  "description": "Mac menu bar timer tracker with Google Calendar integration",
+  "description": "Mac menu bar time tracking with Google Calendar integration",
   "scripts": {
     "dev:web": "vite --port 5173",
-    "dev:landing": "cd landing-page && vite --port 5174",
+    "dev:landing": "vite --config landing-page/vite.config.js --port 5174",
     "dev:electron": "concurrently \"tsc -p tsconfig.desktop.json -w\" \"vite build --watch\" \"wait-on dist/desktop/main.js && cp desktop/preload.js dist/desktop/ && wait-on dist/renderer/index.html && electron . --dev\"",
     "build": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build",
     "build:desktop": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/",
@@ -15,7 +15,7 @@
     "build:landing:gh-pages": "cd landing-page && NODE_ENV=production vite build",
     "build:electron": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
     "build:electron:ci": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && electron-builder",
-    "rebuild:electron": "pkill -f 'Timer Tracker' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
+    "rebuild:electron": "pkill -f 'Dingo Track' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
     "start": "electron .",
     "postinstall": "electron-builder install-app-deps",
     "convert-icons": "node scripts/convert-icons.js"
@@ -49,8 +49,8 @@
     "wait-on": "^7.0.1"
   },
   "build": {
-    "appId": "com.everytime.timer-tracker",
-    "productName": "Timer Tracker",
+    "appId": "com.everytime.dingo-track",
+    "productName": "Dingo Track",
     "directories": {
       "output": "dist-electron"
     },

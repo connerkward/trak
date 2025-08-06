@@ -1,8 +1,8 @@
-# Timer Tracker
+# Dingo Track
 
 <div align="center">
-  <img src="landing-page/landing-page.png" alt="Timer Tracker Landing Page" width="800" />
-  <p><em>Timer Tracker - Mac menu bar time tracking with Google Calendar integration</em></p>
+  <img src="landing-page/landing-page.png" alt="Dingo Track Landing Page" width="800" />
+  <p><em>Dingo Track - Mac menu bar time tracking with Google Calendar integration</em></p>
 </div>
 
 A Mac menu bar app for time tracking with Google Calendar integration.
@@ -61,7 +61,7 @@ A Mac menu bar app for time tracking with Google Calendar integration.
 
 ### Main Interface
 
-- Click the timer tracker icon in the menu bar to open the main window
+- Click the Dingo Track icon in the menu bar to open the main window
 - View all configured timers with start/stop buttons
 - Use the quick add form to create new timers
 - Access settings and quit the app from the footer
@@ -82,7 +82,7 @@ A Mac menu bar app for time tracking with Google Calendar integration.
 ## File Structure
 
 ```
-apps/timer-tracker/
+apps/dingo-track/
 ├── desktop/                 # Electron main process
 │   ├── main.ts             # App entry point and window management
 │   ├── preload.js          # IPC bridge between main and renderer

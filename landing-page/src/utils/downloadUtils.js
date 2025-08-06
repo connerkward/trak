@@ -36,11 +36,11 @@ export const getDMGDownloadUrl = () => {
   
   // For now, we'll use the universal DMG since electron-builder creates one file
   // that works on both architectures
-  return `${baseUrl}/Timer Tracker-1.0.0.dmg`;
+  return `${baseUrl}/Dingo Track-1.0.0.dmg`;
 };
 
 export const getDMGFilename = () => {
-  return 'Timer Tracker-1.0.0.dmg';
+  return 'Dingo Track-1.0.0.dmg';
 };
 
 export const checkDMGAvailability = async () => {

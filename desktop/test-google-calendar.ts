@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Atomic test for Google Calendar Service
- * Run with: cd apps/timer-tracker && npx tsx desktop/test-google-calendar.ts
+ * Run with: cd apps/dingo-track && npx tsx desktop/test-google-calendar.ts
  */
 
 import { GoogleCalendarService } from './googleCalendarService';

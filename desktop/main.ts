@@ -97,7 +97,7 @@ try {
   // Show error dialog to user
   dialog.showErrorBox(
     'Initialization Error', 
-    `Failed to start Timer Tracker due to missing dependencies.\n\nError: ${errorMessage}\n\nPlease reinstall the application.`
+    `Failed to start Dingo Track due to missing dependencies.\n\nError: ${errorMessage}\n\nPlease reinstall the application.`
   );
   
   // Exit the app
@@ -111,7 +111,7 @@ function createTray(): void {
   const icon = nativeImage.createFromPath(iconPath);
   
   tray = new Tray(icon);
-  tray.setToolTip('Timer Tracker');
+  tray.setToolTip('Dingo Track');
 
   // Create main window when tray is clicked
   tray.on('click', (event, bounds) => {
@@ -322,7 +322,7 @@ function createSettingsWindow(): void {
     width: 400,
     height: 500,
     resizable: false,
-    title: 'Timer Tracker Settings',
+          title: 'Dingo Track Settings',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -442,8 +442,8 @@ ipcMain.handle('quit-app', () => {
 
 ipcMain.handle('open-dxt-file', async () => {
   const dxtContent = `{
-  "name": "timer-tracker-mcp",
-  "description": "MCP server for Timer Tracker integration with Claude Desktop",
+      "name": "dingo-track-mcp",
+        "description": "MCP server for Dingo Track integration with Claude Desktop",
   "version": "1.0.0",
   "type": "stdio",
   "command": "node",
@@ -455,8 +455,8 @@ ipcMain.handle('open-dxt-file', async () => {
 }`;
 
   const result = await dialog.showSaveDialog({
-    title: 'Save Timer Tracker MCP Configuration',
-    defaultPath: 'timer-tracker-mcp.dxt',
+          title: 'Save Dingo Track MCP Configuration',
+          defaultPath: 'dingo-track-mcp.dxt',
     filters: [
       { name: 'Desktop Extension Files', extensions: ['dxt'] }
     ]
@@ -503,7 +503,7 @@ app.whenReady().then(() => {
     // Show error dialog to user
     dialog.showErrorBox(
       'App Initialization Error', 
-      `Timer Tracker failed to start properly.\n\nError: ${errorMessage}\n\nThe app will now close.`
+      `Dingo Track failed to start properly.\n\nError: ${errorMessage}\n\nThe app will now close.`
     );
     
     // Exit the app
@@ -516,7 +516,7 @@ app.whenReady().then(() => {
   // Show error dialog to user  
   dialog.showErrorBox(
     'Startup Error', 
-    `Timer Tracker failed to start.\n\nError: ${error.message}\n\nPlease reinstall the application.`
+    `Dingo Track failed to start.\n\nError: ${error.message}\n\nPlease reinstall the application.`
   );
   
   // Exit the app

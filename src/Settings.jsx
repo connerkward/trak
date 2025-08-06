@@ -232,7 +232,7 @@ const Settings = () => {
   return (
     <div className="settings-container">
       <div className="header">
-        <h1>Timer Tracker Settings</h1>
+        <h1>Dingo Track Settings</h1>
       </div>
 
       {!isAuthenticated && (

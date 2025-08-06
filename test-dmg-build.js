@@ -97,7 +97,7 @@ if (hasValidCredentials) {
 }
 
 console.log('\n🎯 DMG Build Test Summary:');
-console.log('   To build DMG: pnpm timer-tracker:rebuild:electron');
+console.log('   To build DMG: pnpm dingo-track:rebuild:electron');
 console.log('   This will:');
 console.log('   1. Kill running processes');
 console.log('   2. Build desktop code');

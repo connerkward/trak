@@ -213,7 +213,7 @@ export class GoogleCalendarService {
                 <div class="container">
                   <div class="success">Authentication Successful!</div>
                   <div class="message">
-                    <p>Your Google Calendar has been successfully connected to Timer Tracker.</p>
+                    <p>Your Google Calendar has been successfully connected to Dingo Track.</p>
                     <p>You can now close this window and return to the app.</p>
                   </div>
                 </div>

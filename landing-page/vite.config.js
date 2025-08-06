@@ -3,27 +3,30 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 export default defineConfig({
-  plugins: [react()],
-  root: '.',
+  plugins: [react({
+    fastRefresh: true
+  })],
+  root: './landing-page',
   base: process.env.NODE_ENV === 'production' ? '/trak/' : '/',
   build: {
     outDir: '../docs',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html')
+        main: resolve(__dirname, 'landing-page/index.html')
       }
     },
     assetsDir: 'assets'
   },
   server: {
     port: 5174,
-    open: true
+    open: true,
+    hmr: true
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src')
+      '@': resolve(__dirname, 'landing-page/src')
     }
   },
-  publicDir: ['public', '../assets']
+  publicDir: ['landing-page/public', 'assets']
 }); 

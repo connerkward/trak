@@ -54,7 +54,7 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: timer-tracker-dmg
+          name: dingo-track-dmg
           path: dist-electron/*.dmg
           retention-days: 30
 
@@ -81,7 +81,7 @@ jobs:
       - name: Download DMG artifact
         uses: actions/download-artifact@v4
         with:
-          name: timer-tracker-dmg
+          name: dingo-track-dmg
           path: ./landing-page/public
 
       - name: Build landing page for GitHub Pages

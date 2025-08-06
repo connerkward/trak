@@ -22,8 +22,8 @@ const Header = ({ isScrolled }) => {
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
         <div className="logo">
-          <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Timer Tracker" className="logo-icon" />
-          <span className="logo-text">Timer Tracker</span>
+          <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Dingo Track" className="logo-icon" />
+          <span className="logo-text">Dingo Tracker</span>
         </div>
         
         <nav className="nav">

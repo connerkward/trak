@@ -53,9 +53,9 @@ const DownloadSection = () => {
 
         <div className="download-card">
           <div className="download-info">
-            <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Timer Tracker" className="download-app-icon" />
+            <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Dingo Track" className="download-app-icon" />
             <div className="download-details">
-              <h3>Timer Tracker</h3>
+              <h3>Dingo Track</h3>
               <p className="version">Version 1.0.0</p>
               <p className="platform">macOS • Universal (Intel + Apple Silicon)</p>
             </div>
@@ -105,7 +105,7 @@ const DownloadSection = () => {
           <ol>
             <li>Download the DMG file</li>
             <li>Double-click to mount the disk image</li>
-            <li>Drag Timer Tracker to your Applications folder</li>
+            <li>Drag Dingo Track to your Applications folder</li>
             <li>Launch from Applications or Spotlight</li>
           </ol>
         </div>
