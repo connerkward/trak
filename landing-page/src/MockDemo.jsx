@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../../src/App.css';
+import '../../src/renderer/main/App.css';
 
 const MockDemo = () => {
   const [timers, setTimers] = useState([

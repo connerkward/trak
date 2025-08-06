@@ -1,5 +1,5 @@
 /* Import base app styles */
-@import '../../src/App.css';
+@import '../../src/renderer/main/App.css';
 
 /* Landing Page Specific Styles */
 /* Test hot reload - this should update automatically - UPDATED */
