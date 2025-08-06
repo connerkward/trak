@@ -1,20 +1,20 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
 import * as fs from 'fs';
-import { GoogleCalendarService } from './googleCalendarService';
+import { GoogleCalendarServiceSimple } from './googleCalendarServiceSimple';
 import { TimerService } from './timerService';
-import Store from 'electron-store';
+import { SimpleStore } from './simpleStore';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
 import * as path from 'path';
 
 // Load .env file - handle both development and production paths
-// Use __dirname check instead of app.isPackaged for initial setup
-const isDev = __dirname.includes('dist/desktop') || __dirname.includes('dist-bundle');
+// Check for electron-vite development or original build system
+const isDev = __dirname.includes('out/main') || __dirname.includes('dist/desktop') || __dirname.includes('dist-bundle') || process.env.NODE_ENV === 'development';
 let envPath: string;
 
 if (isDev) {
-  // Development: dist/desktop -> app root
+  // Development: electron-vite (out/main) or original (dist/desktop) -> app root
   envPath = path.join(__dirname, '..', '..', '.env');
 } else {
   // Production: app.asar -> app root (when asar is disabled)
@@ -36,10 +36,10 @@ console.log('Environment check:', {
 let tray: (Tray & { clickTimeout?: NodeJS.Timeout }) | null = null;
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
-const store = new Store();
+const store = new SimpleStore({ name: 'dingo-track' });
 
 // Services with error handling
-let googleCalendarService: GoogleCalendarService;
+let googleCalendarService: GoogleCalendarServiceSimple;
 let timerService: TimerService;
 
 try {
@@ -48,7 +48,19 @@ try {
   const oauthEmitter = new EventEmitter();
   (global as any).oauthEmitter = oauthEmitter;
   
-  googleCalendarService = new GoogleCalendarService();
+  googleCalendarService = new GoogleCalendarServiceSimple();
+  
+  // Set up auth success callback to notify all windows
+  googleCalendarService.setAuthSuccessCallback(() => {
+    // Notify main window
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('oauth-success');
+    }
+    // Notify settings window
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      settingsWindow.webContents.send('oauth-success');
+    }
+  });
   timerService = new TimerService();
   
   // Initialize timer service
@@ -170,13 +182,13 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, '..', 'preload', 'index.js')
     },
     show: false
   });
 
-  // For now, use index.html until we build main.html
-  mainWindow.loadFile(path.join(__dirname, '../../dist/renderer/index.html'));
+  // Load the main renderer HTML
+  mainWindow.loadFile(path.join(__dirname, '../renderer/main.html'));
   
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -194,6 +206,19 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
 
   mainWindow.once('ready-to-show', () => {
     showMainWindow(trayBounds);
+    
+    // Force open DevTools to see what's happening
+    if (mainWindow) {
+      mainWindow.webContents.openDevTools();
+    }
+    
+    // Force data refresh when main window opens
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('data-changed');
+        console.log('📡 Sent initial data-changed to main window on open');
+      }
+    }, 200);
   });
 
   // Handle losing focus/clicking outside
@@ -334,19 +359,24 @@ function createSettingsWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, '..', 'preload', 'index.js')
     },
     show: false
   });
 
-  if (isDev) {
-    settingsWindow.loadFile(path.join(__dirname, '../../dist/renderer/settings.html'));
-  } else {
-    settingsWindow.loadFile(path.join(__dirname, '../../dist/renderer/settings.html'));
-  }
+  // Load the settings renderer HTML
+  settingsWindow.loadFile(path.join(__dirname, '../renderer/settings.html'));
 
   settingsWindow.once('ready-to-show', () => {
-    settingsWindow?.show();
+    // Give the page a moment to load auth state before showing
+    setTimeout(() => {
+      settingsWindow?.show();
+      // Force data refresh when settings window opens
+      if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.webContents.send('data-changed');
+        console.log('📡 Sent initial data-changed to settings window on open');
+      }
+    }, 100);
   });
 
   settingsWindow.on('closed', () => {
@@ -366,11 +396,12 @@ ipcMain.handle('start-auth', async () => {
     if (result.authUrl) {
       // Open the auth URL in the default browser
       await shell.openExternal(result.authUrl);
-      return { success: true };
-    } else if (result.success) {
+      
+      // The local server will handle the callback automatically
+      // No need to wait, just return success
       return { success: true };
     } else {
-      throw new Error(result.error || 'Authentication failed');
+      throw new Error('Authentication failed');
     }
   } catch (error) {
     console.error('Authentication error:', error);
@@ -379,16 +410,19 @@ ipcMain.handle('start-auth', async () => {
 });
 
 ipcMain.handle('set-auth-code', async (event, authCode: string) => {
-  const result = await googleCalendarService.setAuthCode(authCode);
-  
-  if (result) {
+  try {
+    const tokens = await googleCalendarService.setAuthCode(authCode);
+    
     // Notify all windows that OAuth completed successfully
     BrowserWindow.getAllWindows().forEach(window => {
       window.webContents.send('oauth-success');
     });
+    
+    return true;
+  } catch (error) {
+    console.error('Error setting auth code:', error);
+    return false;
   }
-  
-  return result;
 });
 
 ipcMain.handle('logout', async () => {
@@ -421,7 +455,19 @@ ipcMain.handle('get-active-timers', async () => {
 });
 
 ipcMain.handle('add-timer', async (event, name: string, calendarId: string) => {
-  return timerService.addTimer(name, calendarId);
+  console.log(`🔧 add-timer IPC handler called: name="${name}", calendarId="${calendarId}"`);
+  
+  try {
+    const result = timerService.addTimer(name, calendarId);
+    console.log(`✅ Timer added successfully:`, result);
+    
+
+    
+    return result;
+  } catch (error) {
+    console.error(`❌ Error in add-timer handler:`, error);
+    throw error;
+  }
 });
 
 ipcMain.handle('save-timer', async (event, name: string, calendarId: string) => {
@@ -437,6 +483,7 @@ ipcMain.handle('start-stop-timer', async (event, name: string) => {
 });
 
 ipcMain.handle('open-settings', () => {
+  console.log('open-settings IPC handler called');
   createSettingsWindow();
   // Hide the main window when settings opens
   if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
@@ -445,6 +492,7 @@ ipcMain.handle('open-settings', () => {
 });
 
 ipcMain.handle('quit-app', () => {
+  console.log('quit-app IPC handler called');
   app.quit();
 });
 
@@ -481,11 +529,17 @@ ipcMain.on('notify-data-changed', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('data-changed');
   }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('data-changed');
+  }
 });
 
 ipcMain.on('notify-calendar-change', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('data-changed');
+  }
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('data-changed');
   }
 });
 
@@ -532,8 +586,8 @@ app.whenReady().then(() => {
   process.exit(1);
 });
 
-app.on('window-all-closed', (e: any) => {
-  e.preventDefault(); // Prevent app from quitting
+app.on('window-all-closed', () => {
+  // Prevent app from quitting - we're a menu bar app
 });
 
 app.on('before-quit', () => {

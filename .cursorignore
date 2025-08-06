@@ -30,3 +30,7 @@ tmp/
 temp/ 
 
 dist-bundle/
+
+dist/
+
+dist-electron/

@@ -4,7 +4,7 @@
  * Run with: cd apps/dingo-track && npx tsx desktop/test-google-calendar.ts
  */
 
-import { GoogleCalendarService } from './googleCalendarService';
+import { GoogleCalendarServiceSimple as GoogleCalendarService } from './googleCalendarServiceSimple';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
@@ -45,11 +45,10 @@ async function testGoogleCalendarService() {
 
     // Test 5: Test creating event without auth (should return false)
     console.log('5️⃣ Testing event creation without authentication...');
-    const eventCreated = await service.createEvent({
+    const eventCreated = await service.createEvent('primary', {
       summary: 'Test Event',
       start: new Date(),
-      end: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
-      calendarId: 'primary'
+      end: new Date(Date.now() + 60 * 60 * 1000) // 1 hour later
     });
     console.log(`✅ Event creation result: ${eventCreated} (expected: false)\n`);
 
