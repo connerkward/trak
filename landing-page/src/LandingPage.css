@@ -99,6 +99,10 @@ html, body {
   background: #0056CC;
 }
 
+.header-download-btn svg {
+  transform: translateY(1px);
+}
+
 /* Hero Section */
 .hero {
   padding: 80px 24px 60px;
@@ -210,6 +214,8 @@ html, body {
   background: #007AFF;
   color: white;
 }
+
+
 
 .download-btn.primary:hover {
   background: #0056CC;
@@ -411,6 +417,8 @@ html, body {
   min-width: 200px;
   justify-content: center;
 }
+
+
 
 .download-button:hover:not(:disabled) {
   background: #0056CC;

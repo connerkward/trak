@@ -48,7 +48,7 @@ try {
   (global as any).oauthEmitter = oauthEmitter;
   
   googleCalendarService = new GoogleCalendarService();
-  timerService = new TimerService(store, googleCalendarService);
+  timerService = new TimerService();
   
   // Initialize timer service
   timerService.initialize();
@@ -106,11 +106,18 @@ try {
 }
 
 function createTray(): void {
-  // Create tray with custom icon
-  const iconPath = path.join(__dirname, '../../assets/tray-icon-16.png');
-  const icon = nativeImage.createFromPath(iconPath);
-  
-  tray = new Tray(icon);
+  const fs = require('fs');
+  // Use Electron template naming on macOS
+  const isMac = process.platform === 'darwin';
+  const fileName = isMac ? 'tray-iconTemplate.png' : 'tray-icon.png';
+  const iconPath = path.join(__dirname, '../../assets', fileName);
+  console.log('Loading tray icon from:', iconPath);
+  if (!fs.existsSync(iconPath)) {
+    console.error('Tray icon not found:', iconPath);
+    return;
+  }
+  // Pass the file path directly; Electron will handle template naming on macOS
+  tray = new Tray(iconPath);
   tray.setToolTip('Dingo Track');
 
   // Create main window when tray is clicked

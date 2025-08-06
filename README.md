@@ -1,7 +1,9 @@
 # Dingo Track
 
 <div align="center">
-  <img src="landing-page/landing-page.png" alt="Dingo Track Landing Page" width="800" />
+  <a href="https://connerkward.github.io/trak/" target="_blank">
+    <img src="landing-page/landing-page.png" alt="Dingo Track Landing Page" width="800" />
+  </a>
   <p><em>Dingo Track - Mac menu bar time tracking with Google Calendar integration</em></p>
 </div>
 

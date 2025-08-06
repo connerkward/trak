@@ -1,0 +1,10 @@
+packages:
+  - "."
+  - "mobile"
+
+ignoredBuiltDependencies:
+  - esbuild
+  - sharp
+
+onlyBuiltDependencies:
+  - electron

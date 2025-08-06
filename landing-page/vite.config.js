@@ -11,11 +11,6 @@ export default defineConfig({
   build: {
     outDir: '../docs',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'landing-page/index.html')
-      }
-    },
     assetsDir: 'assets'
   },
   server: {
@@ -28,5 +23,5 @@ export default defineConfig({
       '@': resolve(__dirname, 'landing-page/src')
     }
   },
-  publicDir: ['landing-page/public', 'assets']
+  publicDir: 'public'
 }); 
