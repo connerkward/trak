@@ -6,6 +6,7 @@ This document outlines the rearchitected Electron application following modern b
 
 The application has been completely restructured to follow modern Electron development patterns:
 
+
 ### **1. File Structure**
 
 ```
