@@ -51,12 +51,20 @@ jobs:
           DIST_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: pnpm build:electron
 
+      - name: List build artifacts
+        run: |
+          echo "Contents of dist-electron directory:"
+          ls -la dist-electron/ || echo "dist-electron directory not found"
+          echo "Looking for DMG files:"
+          find . -name "*.dmg" -type f || echo "No DMG files found"
+
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: dingo-track-dmg
           path: dist-electron/*.dmg
           retention-days: 30
+        continue-on-error: true
 
   build-and-deploy-landing:
     runs-on: ubuntu-latest
