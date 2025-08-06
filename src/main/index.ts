@@ -13,7 +13,8 @@ import * as path from 'path';
 
 // Load .env file - handle both development and production paths
 // Check for electron-vite development or original build system
-const isDev = __dirname.includes('out/main') || __dirname.includes('dist/desktop') || __dirname.includes('dist-bundle') || process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development';
+console.log('🔍 Development mode check:', { isDev, NODE_ENV: process.env.NODE_ENV, __dirname });
 let envPath: string;
 
 if (isDev) {
