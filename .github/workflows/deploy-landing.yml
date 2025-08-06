@@ -58,7 +58,7 @@ jobs:
           path: dist-electron/*.dmg
           retention-days: 30
 
-  build-landing:
+  build-and-deploy-landing:
     runs-on: ubuntu-latest
     needs: build-desktop
     steps:
@@ -84,22 +84,29 @@ jobs:
           name: dingo-track-dmg
           path: ./landing-page/public
 
-      - name: Build landing page for GitHub Pages
-        run: pnpm build:landing:gh-pages
+      - name: Build icons
+        run: pnpm convert-icons
 
-      - name: Copy DMG to docs for GitHub Pages
+      - name: Build landing page for GitHub Pages
+        run: cd landing-page && NODE_ENV=production pnpm vite build
+
+      - name: Setup downloads directory and copy assets
         run: |
           mkdir -p docs/downloads
           cp landing-page/public/*.dmg docs/downloads/ || true
-          
-      - name: Copy screenshot to docs for README
-        run: |
           cp landing-page/landing-page.png docs/landing-page-screenshot.png || true
+          ls -la docs/downloads/
+          echo "Available downloads:" > docs/downloads/README.md
+          for file in docs/downloads/*.dmg; do
+            if [ -f "$file" ]; then
+              echo "- [$(basename "$file")](./$(basename "$file"))" >> docs/downloads/README.md
+            fi
+          done
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './docs'
@@ -109,8 +116,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build-landing
+    needs: build-and-deploy-landing
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 
+        uses: actions/deploy-pages@v4

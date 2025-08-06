@@ -12,8 +12,9 @@
     "build:desktop": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/",
     "build:renderer": "vite build",
     "build:landing": "vite --config landing-page/vite.config.js build && cp landing-page/public/header-logo.png docs/ && cp landing-page/public/app-icon.png docs/assets/",
-    "build:landing:gh-pages": "cd landing-page && NODE_ENV=production vite build",
-    "build:electron": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
+    "build:landing:gh-pages": "cd landing-page && NODE_ENV=production pnpm vite build",
+    "bundle-main": "ncc build desktop/main.ts -o dist-bundle",
+    "build:electron": "node scripts/convert-icons.js && pnpm run bundle-main && cp desktop/preload.js dist/desktop/ && vite build && node scripts/bundle-creds.js && electron-builder",
     "build:electron:ci": "node scripts/convert-icons.js && tsc -p tsconfig.desktop.json && cp desktop/preload.js dist/desktop/ && vite build && electron-builder",
     "rebuild:electron": "pkill -f 'Dingo Track' || true && pkill -f 'electron' || true && pnpm build:electron && open dist-electron/ && open /Applications/",
     "start": "electron .",
@@ -22,7 +23,7 @@
     "check-deps": "depcheck --json --ignore-bin-package true 2>/dev/null",
     "fix-deps": "pnpm run check-deps | jq -r '.missing[]' | xargs -r pnpm add -w"
   },
-  "main": "dist/desktop/main.js",
+  "main": "dist-bundle/index.js",
   "dependencies": {
     "@isaacs/cliui": "^8.0.2",
     "@pkgjs/parseargs": "^0.11.0",
@@ -126,6 +127,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@vercel/ncc": "^0.38.3",
     "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.14",
     "concurrently": "^8.2.0",
@@ -150,6 +152,7 @@
     },
     "files": [
       "dist/**/*",
+      "dist-bundle/**/*",
       "src/**/*",
       "public/**/*",
       "assets/**/*",

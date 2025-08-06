@@ -9,7 +9,8 @@ import dotenv from 'dotenv';
 import * as path from 'path';
 
 // Load .env file - handle both development and production paths
-const isDev = !app.isPackaged;
+// Use __dirname check instead of app.isPackaged for initial setup
+const isDev = __dirname.includes('dist/desktop') || __dirname.includes('dist-bundle');
 let envPath: string;
 
 if (isDev) {

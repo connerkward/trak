@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react({
     fastRefresh: true
   })],
-  root: './landing-page',
+  root: '.',
   base: process.env.NODE_ENV === 'production' ? '/trak/' : '/',
   build: {
     outDir: '../docs',

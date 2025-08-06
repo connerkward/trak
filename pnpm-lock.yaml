@@ -309,6 +309,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.2.7
         version: 18.3.7(@types/react@18.3.23)
+      '@vercel/ncc':
+        specifier: ^0.38.3
+        version: 0.38.3
       '@vitejs/plugin-react':
         specifier: ^4.0.3
         version: 4.7.0(vite@4.5.14(@types/node@20.19.9)(terser@5.43.1))
@@ -1054,6 +1057,10 @@ packages:
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
+
+  '@vercel/ncc@0.38.3':
+    resolution: {integrity: sha512-rnK6hJBS6mwc+Bkab+PGPs9OiS0i/3kdTO+CkI8V0/VrW3vmz7O2Pxjw/owOlmo6PKEIxRSeZKv/kuL9itnpYA==}
+    hasBin: true
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -3655,6 +3662,8 @@ snapshots:
     dependencies:
       '@types/node': 20.19.9
     optional: true
+
+  '@vercel/ncc@0.38.3': {}
 
   '@vitejs/plugin-react@4.7.0(vite@4.5.14(@types/node@20.19.9)(terser@5.43.1))':
     dependencies:
