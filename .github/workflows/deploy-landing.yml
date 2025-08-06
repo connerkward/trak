@@ -49,7 +49,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DIST_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           DIST_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        run: pnpm build:electron
+        run: pnpm dist:mac
 
       - name: List build artifacts
         run: |
