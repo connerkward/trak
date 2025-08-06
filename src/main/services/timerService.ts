@@ -1,23 +1,6 @@
-import { GoogleCalendarServiceSimple } from './googleCalendarServiceSimple';
-import { SimpleStore } from './simpleStore';
-
-export interface Timer {
-  name: string;
-  calendarId: string;
-}
-
-export interface ActiveTimer {
-  name: string;
-  startTime: Date;
-}
-
-export interface TimerSession {
-  name: string;
-  calendarId: string;
-  startTime: Date;
-  endTime?: Date;
-  duration?: number; // in minutes
-}
+import { GoogleCalendarServiceSimple } from './GoogleCalendarService';
+import { SimpleStore } from './StorageService';
+import type { Timer, ActiveTimer, TimerSession } from '../../shared/types';
 
 export class TimerService {
   private store: SimpleStore;
@@ -47,6 +30,10 @@ export class TimerService {
         });
       }
     }
+  }
+
+  getCurrentUserId(): string | null {
+    return this.currentUserId;
   }
 
   initialize(): void {
@@ -86,7 +73,7 @@ export class TimerService {
     return activeTimersData;
   }
 
-  addTimer(name: string, calendarId: string): boolean {
+  addTimer(name: string, calendarId: string): Timer {
     if (!this.currentUserId) {
       throw new Error('No user is currently authenticated');
     }
@@ -102,27 +89,28 @@ export class TimerService {
     timers.push(newTimer);
     this.store.set(`timers_${this.currentUserId}`, timers);
     
-    return true;
+    return newTimer;
   }
 
-  saveTimer(name: string, calendarId: string): boolean {
+  saveTimer(name: string, calendarId: string): Timer {
     if (!this.currentUserId) {
       throw new Error('No user is currently authenticated');
     }
 
     const timers = this.getAllTimers();
     const existingIndex = timers.findIndex(t => t.name === name);
+    const timer: Timer = { name, calendarId };
     
     if (existingIndex >= 0) {
       // Update existing timer
-      timers[existingIndex] = { name, calendarId };
+      timers[existingIndex] = timer;
     } else {
       // Add new timer
-      timers.push({ name, calendarId });
+      timers.push(timer);
     }
     
     this.store.set(`timers_${this.currentUserId}`, timers);
-    return true;
+    return timer;
   }
 
   deleteTimer(name: string): boolean {

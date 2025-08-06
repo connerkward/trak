@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { Timer, Calendar } from '../../shared/types';
 import './Settings.css';
 
-const Settings = () => {
-  const [timers, setTimers] = useState([]);
-  const [calendars, setCalendars] = useState([]);
-  const [editingTimer, setEditingTimer] = useState(null);
-  const [hiddenCalendars, setHiddenCalendars] = useState([]);
-  const [formData, setFormData] = useState({ name: '', calendarId: '' });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
+interface FormData {
+  name: string;
+  calendarId: string;
+}
+
+const Settings: React.FC = () => {
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [editingTimer, setEditingTimer] = useState<Timer | null>(null);
+  const [hiddenCalendars, setHiddenCalendars] = useState<string[]>([]);
+  const [formData, setFormData] = useState<FormData>({ name: '', calendarId: '' });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
 
   const loadData = async () => {
     try {
@@ -33,11 +39,11 @@ const Settings = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined' && window.location.protocol === 'http:' && !window.api) {
       console.log('Loading mock API for settings...');
-      import('./mock-api.js').then(() => {
-        console.log('Mock API loaded, window.api:', window.api);
-        // Trigger a re-render after mock API loads
-        setTimeout(() => loadData(), 100);
-      });
+              import('../shared/mock-api.js').then(() => {
+          console.log('Mock API loaded, window.api:', window.api);
+          // Trigger a re-render after mock API loads
+          setTimeout(() => loadData(), 100);
+        });
     } else {
       console.log('Mock API conditions not met:', {
         protocol: window.location?.protocol,
@@ -72,21 +78,33 @@ const Settings = () => {
       setTimers([]);
       setFormData({ name: '', calendarId: '' });
       setEditingTimer(null);
+      setHiddenCalendars([]);
+    }) : null;
+
+    // Listen for data changes from other windows
+    const dataChangedUnsubscribe = window.api && window.api.onDataChanged ? window.api.onDataChanged(() => {
+      console.log('📡 Data changed event received in Settings UI - refreshing');
+      loadData();
     }) : null;
 
     return () => {
       if (oauthUnsubscribe) oauthUnsubscribe();
       if (logoutUnsubscribe) logoutUnsubscribe();
+      if (dataChangedUnsubscribe) dataChangedUnsubscribe();
     };
   }, []);
 
-  const handleFormChange = (e) => {
+
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+
     if (!formData.name.trim() || !formData.calendarId) {
       alert('Please fill in all fields');
       return;
@@ -95,38 +113,24 @@ const Settings = () => {
     try {
       await window.api.saveTimer(formData.name.trim(), formData.calendarId);
       
-      // Update local state
-      if (editingTimer) {
-        setTimers(prev => prev.map(t => 
-          t.name === editingTimer.name 
-            ? { name: formData.name.trim(), calendarId: formData.calendarId }
-            : t
-        ));
-      } else {
-        setTimers(prev => [...prev, { 
-          name: formData.name.trim(), 
-          calendarId: formData.calendarId 
-        }]);
-      }
+      // Refresh data from backend (same as main window)
+      await loadData();
 
       // Reset form
       setFormData({ name: '', calendarId: '' });
       setEditingTimer(null);
-
-      // Notify main window of data change
-      window.api.notifyDataChanged();
     } catch (error) {
       console.error('Failed to save timer:', error);
       alert('Failed to save timer');
     }
   };
 
-  const handleEdit = (timer) => {
+  const handleEdit = (timer: Timer) => {
     setEditingTimer(timer);
     setFormData({ name: timer.name, calendarId: timer.calendarId });
   };
 
-  const handleDelete = async (name) => {
+  const handleDelete = async (name: string) => {
     if (!confirm(`Are you sure you want to delete the timer "${name}"?`)) {
       return;
     }
@@ -143,7 +147,7 @@ const Settings = () => {
     }
   };
 
-  const toggleCalendarVisibility = (calendarId) => {
+  const toggleCalendarVisibility = (calendarId: string) => {
     const newHidden = hiddenCalendars.includes(calendarId)
       ? hiddenCalendars.filter(id => id !== calendarId)
       : [...hiddenCalendars, calendarId];
@@ -156,13 +160,13 @@ const Settings = () => {
     }
   };
 
-  const getCalendarName = (calendarId) => {
+  const [authCode, setAuthCode] = useState<string>('');
+  const [showAuthCode, setShowAuthCode] = useState<boolean>(false);
+
+  const getCalendarName = (calendarId: string): string => {
     const calendar = calendars.find(c => c.id === calendarId);
     return calendar ? calendar.name : calendarId;
   };
-
-  const [authCode, setAuthCode] = useState('');
-  const [showAuthCode, setShowAuthCode] = useState(false);
 
   const startAuth = async () => {
     try {
@@ -433,5 +437,6 @@ const Settings = () => {
 
 // Initialize the settings app
 const container = document.getElementById('root');
+if (!container) throw new Error('Root element not found');
 const root = createRoot(container);
 root.render(<Settings />);

@@ -1,8 +1,11 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
+import { EventEmitter } from 'events';
 import * as fs from 'fs';
-import { GoogleCalendarServiceSimple } from './googleCalendarServiceSimple';
-import { TimerService } from './timerService';
-import { SimpleStore } from './simpleStore';
+import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
+import { TimerService } from './services/timerService';
+import { SimpleStore } from './services/StorageService';
+import { serviceContainer, SERVICE_TOKENS } from './utils/ServiceContainer';
+import { bootstrapServices, initializeUserContext, setupOAuthEventListeners, cleanupServices } from './bootstrap';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
@@ -38,85 +41,87 @@ let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
 const store = new SimpleStore({ name: 'dingo-track' });
 
-// Services with error handling
+// Services - now managed by DI container
 let googleCalendarService: GoogleCalendarServiceSimple;
 let timerService: TimerService;
 
-try {
-  // Set up OAuth event emitter for communication between service and main
-  const { EventEmitter } = require('events');
-  const oauthEmitter = new EventEmitter();
-  (global as any).oauthEmitter = oauthEmitter;
-  
-  googleCalendarService = new GoogleCalendarServiceSimple();
-  
-  // Set up auth success callback to notify all windows
-  googleCalendarService.setAuthSuccessCallback(() => {
-    // Notify main window
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('oauth-success');
-    }
-    // Notify settings window
-    if (settingsWindow && !settingsWindow.isDestroyed()) {
-      settingsWindow.webContents.send('oauth-success');
-    }
-  });
-  timerService = new TimerService();
-  
-  // Initialize timer service
-  timerService.initialize();
-  
-  // If user is already authenticated, set the current user
-  if (googleCalendarService.isAuthenticated()) {
-    try {
-      const userId = googleCalendarService.getCurrentUserId();
-      if (userId) {
-        console.log('User already authenticated, setting current user:', userId);
-        googleCalendarService.setCurrentUser(userId);
-        timerService.setCurrentUser(userId);
-      }
-    } catch (error) {
-      console.error('Error getting user ID on startup:', error);
-    }
-  }
-  
-  // Listen for OAuth completion events
-  oauthEmitter.on('oauth-completed', async (data: any) => {
-    console.log('OAuth completed - notifying all windows', data);
+async function initializeServices() {
+  try {
+    // Bootstrap all services with dependency injection
+    bootstrapServices();
+    setupOAuthEventListeners();
     
-    // Get the current user ID and set it in both services
-    try {
-      const userId = googleCalendarService.getCurrentUserId();
-      if (userId) {
-        console.log('Setting current user:', userId);
-        googleCalendarService.setCurrentUser(userId);
-        timerService.setCurrentUser(userId);
-      }
-    } catch (error) {
-      console.error('Error getting user ID:', error);
-    }
+    // Get service instances from container
+    googleCalendarService = serviceContainer.get<GoogleCalendarServiceSimple>(SERVICE_TOKENS.GoogleCalendarService);
+    timerService = serviceContainer.get<TimerService>(SERVICE_TOKENS.TimerService);
     
-    // Notify all windows that authentication succeeded
-    BrowserWindow.getAllWindows().forEach(window => {
-      console.log('Sending oauth-success to window:', window.id);
-      window.webContents.send('oauth-success');
+    // Set up auth success callback to notify all windows
+    googleCalendarService.setAuthSuccessCallback(() => {
+      console.log('🔐 Auth success callback triggered - setting timer service user and notifying all windows');
+      
+      // IMMEDIATELY set the timer service user to prevent race condition
+      const currentUserId = googleCalendarService.getCurrentUserId();
+      if (currentUserId) {
+        timerService.setCurrentUser(currentUserId);
+        console.log('Timer service user set to:', currentUserId);
+      } else {
+        console.error('No current user ID available after auth!');
+      }
+      
+      // Notify all windows that OAuth completed successfully
+      BrowserWindow.getAllWindows().forEach(window => {
+        console.log('Sending oauth-success to window:', window.id);
+        window.webContents.send('oauth-success');
+      });
     });
-  });
-} catch (error) {
-  console.error('Failed to initialize services:', error);
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error('Error details:', errorMessage);
-  
-  // Show error dialog to user
-  dialog.showErrorBox(
-    'Initialization Error', 
-    `Failed to start Dingo Track due to missing dependencies.\n\nError: ${errorMessage}\n\nPlease reinstall the application.`
-  );
-  
-  // Exit the app
-  app.quit();
-  process.exit(1);
+    
+    // Initialize user context if already authenticated
+    await initializeUserContext(isDev);
+    
+    // Set up OAuth completion handler
+    const oauthEmitter = serviceContainer.get<EventEmitter>(SERVICE_TOKENS.EventEmitter);
+    oauthEmitter.on('oauth-completed', async (data: any) => {
+      console.log('OAuth completed - notifying all windows', data);
+      
+      // Get the current user ID and set it in both services
+      try {
+        const userId = googleCalendarService.getCurrentUserId();
+        if (userId) {
+          console.log('Setting current user:', userId);
+          googleCalendarService.setCurrentUser(userId);
+          timerService.setCurrentUser(userId);
+        }
+      } catch (error) {
+        console.error('Error getting user ID:', error);
+      }
+      
+      // Notify all windows that authentication succeeded
+      BrowserWindow.getAllWindows().forEach(window => {
+        console.log('Sending oauth-success to window:', window.id);
+        window.webContents.send('oauth-success');
+      });
+    });
+  } catch (error) {
+    console.error('Failed to initialize services:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error details:', errorMessage);
+    
+    // Show error dialog to user
+    dialog.showErrorBox(
+      'Initialization Error', 
+      `Failed to start Dingo Track due to missing dependencies.\n\nError: ${errorMessage}\n\nPlease reinstall the application.`
+    );
+    
+    // Exit the app
+    app.quit();
+    process.exit(1);
+  }
 }
+
+// Initialize services
+initializeServices();
+
+
 
 function createTray(): void {
   const fs = require('fs');
@@ -188,8 +193,13 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
   });
 
   // Load the main renderer HTML
-  mainWindow.loadFile(path.join(__dirname, '../renderer/main.html'));
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173/main/');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/main/index.html'));
+  }
   
+  // Open DevTools in development for debugging
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
@@ -207,9 +217,9 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
   mainWindow.once('ready-to-show', () => {
     showMainWindow(trayBounds);
     
-    // Force open DevTools to see what's happening
-    if (mainWindow) {
-      mainWindow.webContents.openDevTools();
+    // Open DevTools in development for debugging
+    if (isDev && mainWindow) {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
     
     // Force data refresh when main window opens
@@ -221,10 +231,17 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     }, 200);
   });
 
-  // Handle losing focus/clicking outside
+  // Handle losing focus/clicking outside - with delay to prevent immediate closing
   mainWindow.on('blur', () => {
     if (mainWindow && !mainWindow.webContents.isDevToolsOpened()) {
-      hideMainWindowWithAnimation();
+      // Add a delay to allow for tray icon click completion
+      setTimeout(() => {
+        // Only hide if window is still not focused and visible
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused() && 
+            mainWindow.isVisible() && !mainWindow.webContents.isDevToolsOpened()) {
+          hideMainWindowWithAnimation();
+        }
+      }, 150); // Increased delay to allow tray click to complete
     }
   });
 
@@ -256,6 +273,8 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     mainWindow = null;
   });
 }
+
+
 
 function showMainWindow(providedTrayBounds?: Electron.Rectangle): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
@@ -355,7 +374,7 @@ function createSettingsWindow(): void {
     width: 400,
     height: 500,
     resizable: false,
-          title: 'Dingo Track Settings',
+    title: 'Dingo Track Settings',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -365,7 +384,11 @@ function createSettingsWindow(): void {
   });
 
   // Load the settings renderer HTML
-  settingsWindow.loadFile(path.join(__dirname, '../renderer/settings.html'));
+  if (isDev) {
+    settingsWindow.loadURL('http://localhost:5173/settings/');
+  } else {
+    settingsWindow.loadFile(path.join(__dirname, '../renderer/settings/index.html'));
+  }
 
   settingsWindow.once('ready-to-show', () => {
     // Give the page a moment to load auth state before showing
@@ -386,7 +409,15 @@ function createSettingsWindow(): void {
 
 // IPC handlers
 ipcMain.handle('get-calendars', async () => {
-  return await googleCalendarService.getCalendars();
+  const calendars = await googleCalendarService.getCalendars();
+  
+  // Sync timer service user state when calendars are available
+  if (calendars.length > 0 && !timerService.getCurrentUserId()) {
+    console.log('Calendars loaded, syncing timer service user state');
+    timerService.setCurrentUser('default');
+  }
+  
+  return calendars;
 });
 
 ipcMain.handle('start-auth', async () => {
@@ -412,6 +443,15 @@ ipcMain.handle('start-auth', async () => {
 ipcMain.handle('set-auth-code', async (event, authCode: string) => {
   try {
     const tokens = await googleCalendarService.setAuthCode(authCode);
+    
+    // Ensure both services have the same user set after auth
+    const userId = googleCalendarService.getCurrentUserId();
+    if (userId) {
+      console.log('Setting current user after auth:', userId);
+      timerService.setCurrentUser(userId);
+    } else {
+      console.error('No user ID available after setAuthCode!');
+    }
     
     // Notify all windows that OAuth completed successfully
     BrowserWindow.getAllWindows().forEach(window => {
@@ -447,7 +487,10 @@ ipcMain.handle('logout', async () => {
 });
 
 ipcMain.handle('get-all-timers', async () => {
-  return timerService.getAllTimers();
+  const currentUser = timerService.getCurrentUserId();
+  const timers = timerService.getAllTimers();
+  console.log(`📊 get-all-timers: currentUser="${currentUser}", timers count=${timers.length}`);
+  return timers;
 });
 
 ipcMain.handle('get-active-timers', async () => {
@@ -461,7 +504,10 @@ ipcMain.handle('add-timer', async (event, name: string, calendarId: string) => {
     const result = timerService.addTimer(name, calendarId);
     console.log(`✅ Timer added successfully:`, result);
     
-
+    // Notify all windows of data change
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('data-changed');
+    });
     
     return result;
   } catch (error) {
@@ -471,11 +517,35 @@ ipcMain.handle('add-timer', async (event, name: string, calendarId: string) => {
 });
 
 ipcMain.handle('save-timer', async (event, name: string, calendarId: string) => {
-  return timerService.saveTimer(name, calendarId);
+  try {
+    const result = timerService.saveTimer(name, calendarId);
+    
+    // Notify all windows of data change
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('data-changed');
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error in save-timer handler:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('delete-timer', async (event, name: string) => {
-  return timerService.deleteTimer(name);
+  try {
+    const result = timerService.deleteTimer(name);
+    
+    // Notify all windows of data change
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('data-changed');
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error in delete-timer handler:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('start-stop-timer', async (event, name: string) => {
@@ -555,9 +625,6 @@ app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
     
     createTray();
-    
-    // Initialize services
-    timerService.initialize();
   } catch (error) {
     console.error('Failed to initialize app:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -591,8 +658,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
-  // Clean up
-  timerService.cleanup();
+  // Clean up services
+  cleanupServices();
   
   // Clean up tray
   if (tray && !tray.isDestroyed()) {

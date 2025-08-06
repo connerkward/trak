@@ -1,32 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { Timer, Calendar } from '../../shared/types';
 import './App.css';
 
-const App = () => {
-  const [timers, setTimers] = useState([]);
-  const [calendars, setCalendars] = useState([]);
-  const [activeTimers, setActiveTimers] = useState({});
-  const [hiddenCalendars, setHiddenCalendars] = useState([]);
-  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
-  const [selectedCalendar, setSelectedCalendar] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const taskListRef = useRef(null);
+const App: React.FC = () => {
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [activeTimers, setActiveTimers] = useState<Record<string, string>>({});
+  const [hiddenCalendars, setHiddenCalendars] = useState<string[]>([]);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState<boolean>(false);
+  const [selectedCalendar, setSelectedCalendar] = useState<string>('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const taskListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadData();
-    loadHiddenCalendars();
-    loadLastUsedCalendar();
+    // Cache initial data load to prevent multiple redundant calls
+    Promise.all([
+      loadData(),
+      loadHiddenCalendars(),
+      loadLastUsedCalendar()
+    ]).catch(console.error);
     
     // Listen for data changes from other windows
     const handleDataChanged = () => {
-      console.log('Data changed, refreshing...');
+      console.log('📡 Data changed event received - refreshing');
       loadData();
       loadHiddenCalendars();
     };
     
     // Listen for OAuth success
     const handleOAuthSuccess = () => {
-      console.log('OAuth success received in main App UI');
+      console.log('🔐 OAuth success received in main App UI - reloading data');
       loadData();
       loadHiddenCalendars();
     };
@@ -37,7 +41,13 @@ const App = () => {
       setIsAuthenticated(false);
       setCalendars([]);
       setTimers([]);
-      loadData();
+      setActiveTimers({});
+      setSelectedCalendar('');
+      setHiddenCalendars([]);
+      // Clear localStorage
+      localStorage.removeItem('hiddenCalendars');
+      localStorage.removeItem('lastUsedCalendar');
+      // Don't call loadData() after logout - it will just fail
     };
     
     if (window.api && window.api.onDataChanged) {
@@ -86,7 +96,7 @@ const App = () => {
     setSelectedCalendar(lastUsed);
   };
 
-  const saveLastUsedCalendar = (calendarId) => {
+  const saveLastUsedCalendar = (calendarId: string) => {
     localStorage.setItem('lastUsedCalendar', calendarId);
     setSelectedCalendar(calendarId);
   };
@@ -104,6 +114,15 @@ const App = () => {
         window.api.getAllTimers(),
         window.api.getActiveTimers()
       ]);
+      
+      console.log('📊 Load data results:', {
+        calendars: calendarsData?.length || 0,
+        timers: timersData?.length || 0,
+        activeTimers: Object.keys(activeTimersData || {}).length,
+        calendarsData,
+        timersData,
+        activeTimersData
+      });
       
       setCalendars(calendarsData);
       setTimers(timersData);
@@ -127,14 +146,14 @@ const App = () => {
     }
   };
 
-  const handleStartStop = async (timer) => {
+  const handleStartStop = async (timer: Timer) => {
     try {
       const result = await window.api.startStopTimer(timer.name);
       
       if (result.action === 'started') {
         setActiveTimers(prev => ({
           ...prev,
-          [timer.name]: result.startTime.toISOString()
+          [timer.name]: result.startTime?.toISOString() || new Date().toISOString()
         }));
       } else {
         setActiveTimers(prev => {
@@ -149,11 +168,15 @@ const App = () => {
     }
   };
 
-  const handleAddTask = async (e) => {
+  const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const name = formData.get('name').trim();
-    const calendarId = formData.get('calendarId');
+    
+
+    // Capture form reference early before async operations
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const name = (formData.get('name') as string)?.trim();
+    const calendarId = formData.get('calendarId') as string;
 
     if (!name || !calendarId) {
       alert('Please fill in all fields');
@@ -161,30 +184,44 @@ const App = () => {
     }
 
     try {
+      console.log('Adding timer:', name, calendarId);
       await window.api.addTimer(name, calendarId);
+      console.log('Timer added successfully, saving calendar preference');
       saveLastUsedCalendar(calendarId);
-      await refreshTimers();
-      e.target.reset();
       
+      console.log('Refreshing data after timer add');
+      try {
+        await loadData();
+        console.log('Data refreshed successfully');
+      } catch (loadError) {
+        console.error('Error during loadData:', loadError);
+        // Don't throw - timer was already added successfully
+      }
+      
+      console.log('Resetting form');
+      form.reset();
+      
+      console.log('Setting calendar select value');
       // Reset the form but keep the selected calendar
-      const form = e.target;
-      const calendarSelect = form.querySelector('select[name="calendarId"]');
+      const calendarSelect = form.querySelector('select[name="calendarId"]') as HTMLSelectElement;
       if (calendarSelect) {
         calendarSelect.value = calendarId;
       }
+      console.log('Setting scroll flag');
       setShouldScrollToBottom(true);
+      console.log('Timer add completed successfully');
     } catch (error) {
       console.error('Failed to add timer:', error);
       alert('Failed to add timer');
     }
   };
 
-  const handleCalendarChange = (e) => {
+  const handleCalendarChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const calendarId = e.target.value;
     saveLastUsedCalendar(calendarId);
   };
 
-  const getCalendarName = (calendarId) => {
+  const getCalendarName = (calendarId: string): string => {
     const calendar = calendars.find(cal => cal.id === calendarId);
     return calendar ? calendar.name : calendarId;
   };
@@ -302,5 +339,6 @@ const App = () => {
 
 // Initialize the app
 const container = document.getElementById('root');
+if (!container) throw new Error('Root element not found');
 const root = createRoot(container);
 root.render(<App />);

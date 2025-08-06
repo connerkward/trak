@@ -21,24 +21,34 @@
     "dist:linux": "npm run build && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps",
     "ensure-icons": "node scripts/ensure-icons.js",
-    "convert-icons": "node scripts/convert-icons.js"
+    "convert-icons": "node scripts/convert-icons.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/ui": "^3.2.4",
     "electron": "^31.0.2",
     "electron-builder": "^24.13.3",
     "electron-vite": "^2.3.0",
+    "jsdom": "^26.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "rimraf": "^6.0.1",
     "typescript": "^5.5.3",
     "vite": "^5.3.1",
-    "rimraf": "^6.0.1"
+    "vitest": "^3.2.4"
   },
   "build": {
     "appId": "com.everytime.dingo-track",
@@ -58,7 +68,10 @@
       "category": "public.app-category.productivity",
       "target": {
         "target": "dmg",
-        "arch": ["arm64", "x64"]
+        "arch": [
+          "arm64",
+          "x64"
+        ]
       }
     },
     "win": {
@@ -66,7 +79,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -75,7 +90,9 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     }

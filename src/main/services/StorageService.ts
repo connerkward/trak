@@ -2,11 +2,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 
+export interface StorageOptions {
+  name: string;
+}
+
 export class SimpleStore {
-  private data: Record<string, any> = {};
+  private data: Record<string, unknown> = {};
   private filePath: string;
 
-  constructor(options: { name: string }) {
+  constructor(options: StorageOptions) {
     // Get the app data directory
     const userDataPath = app.getPath('userData');
     this.filePath = path.join(userDataPath, `${options.name}.json`);
@@ -39,11 +43,11 @@ export class SimpleStore {
     }
   }
 
-  get(key: string, defaultValue?: any): any {
-    return this.data[key] !== undefined ? this.data[key] : defaultValue;
+  get<T = unknown>(key: string, defaultValue?: T): T {
+    return (this.data[key] !== undefined ? this.data[key] : defaultValue) as T;
   }
 
-  set(key: string, value: any): void {
+  set(key: string, value: unknown): void {
     this.data[key] = value;
     this.save();
   }

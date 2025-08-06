@@ -1,29 +1,8 @@
 import * as https from 'https';
 import * as http from 'http';
 import * as url from 'url';
-import { SimpleStore } from './simpleStore';
-
-export interface Calendar {
-  id: string;
-  name: string;
-  primary?: boolean;
-  accessRole: string;
-}
-
-export interface CalendarEvent {
-  summary: string;
-  start: Date;
-  end: Date;
-  calendarId: string;
-}
-
-export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  scope: string;
-  token_type: string;
-  expiry_date: number;
-}
+import { SimpleStore } from './StorageService';
+import type { Calendar, CalendarEvent, AuthTokens } from '../../shared/types';
 
 export class GoogleCalendarServiceSimple {
   private store: SimpleStore;
@@ -169,11 +148,43 @@ export class GoogleCalendarServiceSimple {
     }
 
     // Check if token is expired (with 5 minute buffer)
-    if (tokens.expiry_date < Date.now() + 300000) {
+    if (!tokens.expiry_date || tokens.expiry_date < Date.now() + 300000) {
       tokens = await this.refreshTokens();
     }
 
     return tokens.access_token;
+  }
+
+  // Get unique user identifier from calendar data (no additional permissions needed)
+  async getUserId(): Promise<string> {
+    const calendars = await this.getCalendars();
+    
+    // Find the primary calendar which contains the user's identifier
+    const primaryCalendar = calendars.find(cal => cal.primary);
+    if (primaryCalendar) {
+      // Use a hash of the primary calendar ID as the user identifier
+      // This ensures uniqueness without exposing personal info
+      return this.createHashFromString(primaryCalendar.id);
+    }
+    
+    // Fallback: use hash of the first calendar ID
+    if (calendars.length > 0) {
+      return this.createHashFromString(calendars[0].id);
+    }
+    
+    // Final fallback: use a timestamp-based ID (not ideal but works)
+    return `user_${Date.now()}`;
+  }
+
+  // Create a simple hash from a string (for user ID generation)
+  private createHashFromString(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return `user_${Math.abs(hash)}`;
   }
 
   // Get calendars
@@ -255,12 +266,22 @@ export class GoogleCalendarServiceSimple {
 
   // Get current user ID (simplified - just return email from token)
   getCurrentUserId(): string | null {
+    if (!this.currentUserId) {
+      // Try to load from store
+      this.currentUserId = this.store.get('currentUserId', null);
+    }
     return this.currentUserId;
   }
 
   // Set current user
   setCurrentUser(userId: string | null): void {
     this.currentUserId = userId;
+    // Persist the user ID
+    if (userId) {
+      this.store.set('currentUserId', userId);
+    } else {
+      this.store.delete('currentUserId');
+    }
   }
 
   // Set auth success callback
@@ -284,7 +305,7 @@ export class GoogleCalendarServiceSimple {
               <html>
                 <head><title>Dingo Track - Authentication Success</title></head>
                 <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-                  <h1>✅ Authentication Successful!</h1>
+                  <h1>Authentication Successful!</h1>
                   <p>You can now close this window and return to Dingo Track.</p>
                   <script>setTimeout(() => window.close(), 2000);</script>
                 </body>
@@ -295,13 +316,21 @@ export class GoogleCalendarServiceSimple {
             
             try {
               // Exchange the auth code for tokens
+              console.log('📝 Exchanging auth code for tokens...');
               const tokens = await this.exchangeCodeForTokens(authCode);
               this.storeTokens(tokens);
-              this.currentUserId = 'default';
+              
+              // Get the actual user ID (hash of calendar data, no personal info)
+              const userId = await this.getUserId();
+              this.currentUserId = userId;
+              console.log('📝 Tokens stored, setting current user to:', this.currentUserId);
               
               // Notify all windows of auth success
               if (this.authSuccessCallback) {
+                console.log('📝 Calling auth success callback');
                 this.authSuccessCallback();
+              } else {
+                console.log('📝 No auth success callback set!');
               }
               
               resolve('success');
@@ -352,15 +381,26 @@ export class GoogleCalendarServiceSimple {
 
   // Set auth code from OAuth callback
   async setAuthCode(code: string): Promise<AuthTokens> {
+    console.log('📝 setAuthCode called with code');
     const tokens = await this.exchangeCodeForTokens(code);
-    // Set user ID from token info if available
-    this.currentUserId = 'default'; // Simplified for now
+    
+    // Get the actual user ID (hash of calendar data, no personal info)
+    const userId = await this.getUserId();
+    this.setCurrentUser(userId);
+    console.log('📝 setAuthCode: setting current user to:', userId);
+    
+    // Notify all windows of auth success
+    if (this.authSuccessCallback) {
+      console.log('📝 Calling auth success callback from setAuthCode');
+      this.authSuccessCallback();
+    }
+    
     return tokens;
   }
 
   // Logout
   async logout(): Promise<void> {
     this.clearTokens();
-    this.currentUserId = null;
+    this.setCurrentUser(null); // This will also clear from store
   }
 }
