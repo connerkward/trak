@@ -33,6 +33,7 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.0",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^20.14.10",
@@ -72,19 +73,14 @@
         {
           "target": "dmg",
           "arch": [
-            "arm64",
-            "x64"
+            "universal"
           ]
         }
       ],
       "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "resources/entitlements.mas.plist",
-      "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
-      "notarize": {
-        "teamId": "${APPLE_TEAM_ID}"
-      }
+      "gatekeeperAssess": false
     },
+    "afterSign": "scripts/notarize.js",
     "mas": {
       "type": "distribution",
       "category": "public.app-category.productivity",
