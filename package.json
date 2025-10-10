@@ -78,9 +78,9 @@
         }
       ],
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "afterSign": "scripts/notarize.js"
     },
-    "afterSign": "scripts/notarize.js",
     "mas": {
       "type": "distribution",
       "category": "public.app-category.productivity",
