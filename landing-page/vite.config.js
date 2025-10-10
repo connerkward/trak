@@ -11,7 +11,13 @@ export default defineConfig({
   build: {
     outDir: '../docs',
     emptyOutDir: true,
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        privacy: resolve(__dirname, 'privacy-policy.html')
+      }
+    }
   },
   server: {
     port: 5174,

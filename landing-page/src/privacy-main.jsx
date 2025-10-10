@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import LandingPage from './LandingPage.jsx';
-import './LandingPage.css';
+import PrivacyPolicy from './PrivacyPolicy.jsx';
 
 const container = document.getElementById('root');
 const root = createRoot(container);
-root.render(<LandingPage />); 
+root.render(<PrivacyPolicy />);
+

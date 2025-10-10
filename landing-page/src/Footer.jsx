@@ -25,7 +25,7 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Legal</h4>
           <ul>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); window.navigateTo && window.navigateTo('privacy'); }}>Privacy Policy</a></li>
+            <li><a href={process.env.NODE_ENV === 'production' ? '/trak/privacy-policy.html' : '/privacy-policy.html'}>Privacy Policy</a></li>
           </ul>
         </div>
       </div>
