@@ -30,22 +30,42 @@ export const detectSystemArchitecture = () => {
   return 'universal';
 };
 
-export const getDMGDownloadUrl = () => {
-  const baseUrl = process.env.NODE_ENV === 'production' ? '/trak/downloads' : '/downloads';
-  const architecture = detectSystemArchitecture();
-  
-  // For now, we'll use the universal DMG since electron-builder creates one file
-  // that works on both architectures
-  return `${baseUrl}/Dingo Track-1.0.0.dmg`;
+// Fetch build info to get current version
+let cachedVersion = '1.0.1'; // Fallback version
+
+export const getBuildInfo = async () => {
+  try {
+    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
+    const response = await fetch(`${basePath}/build-info.json`);
+    if (response.ok) {
+      const data = await response.json();
+      cachedVersion = data.version;
+      return data;
+    }
+  } catch (error) {
+    console.log('Using fallback version:', cachedVersion);
+  }
+  return { version: cachedVersion };
 };
 
-export const getDMGFilename = () => {
-  return 'Dingo Track-1.0.0.dmg';
+export const getDMGDownloadUrl = async () => {
+  const baseUrl = process.env.NODE_ENV === 'production' ? '/trak/downloads' : '/downloads';
+  const buildInfo = await getBuildInfo();
+  const version = buildInfo.version || cachedVersion;
+  
+  // Universal DMG that works on both Intel and Apple Silicon
+  return `${baseUrl}/Dingo Track-${version}-universal.dmg`;
+};
+
+export const getDMGFilename = async () => {
+  const buildInfo = await getBuildInfo();
+  const version = buildInfo.version || cachedVersion;
+  return `Dingo Track-${version}-universal.dmg`;
 };
 
 export const checkDMGAvailability = async () => {
   try {
-    const dmgUrl = getDMGDownloadUrl();
+    const dmgUrl = await getDMGDownloadUrl();
     const response = await fetch(dmgUrl, { method: 'HEAD' });
     return response.ok;
   } catch (error) {
@@ -56,8 +76,8 @@ export const checkDMGAvailability = async () => {
 
 export const downloadDMG = async () => {
   try {
-    const dmgUrl = getDMGDownloadUrl();
-    const filename = getDMGFilename();
+    const dmgUrl = await getDMGDownloadUrl();
+    const filename = await getDMGFilename();
     
     // Check if the file exists first
     const response = await fetch(dmgUrl, { method: 'HEAD' });

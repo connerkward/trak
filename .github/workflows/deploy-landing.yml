@@ -100,6 +100,13 @@ jobs:
       - name: Build landing page for GitHub Pages
         run: pnpm build:landing:prod
 
+      - name: Generate build info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "{\"version\":\"$VERSION\",\"buildTime\":\"$BUILD_TIME\"}" > docs/build-info.json
+          cat docs/build-info.json
+
       - name: Setup downloads directory and copy assets
         run: |
           mkdir -p docs/downloads

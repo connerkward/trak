@@ -61,6 +61,13 @@ jobs:
       with:
         path: artifacts
     
+    - name: Generate release metadata
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        echo "{\"version\":\"$VERSION\",\"buildTime\":\"$BUILD_TIME\",\"releaseTag\":\"${{ github.ref_name }}\"}" > artifacts/release-info.json
+        cat artifacts/release-info.json
+    
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
@@ -71,5 +78,6 @@ jobs:
           artifacts/dingo-track-macos-latest/*.dmg
           artifacts/dingo-track-windows-latest/*.exe
           artifacts/dingo-track-ubuntu-latest/*.AppImage
+          artifacts/release-info.json
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

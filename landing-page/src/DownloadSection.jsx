@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { downloadDMG } from './utils/downloadUtils';
 
 const DownloadSection = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [buildInfo, setBuildInfo] = useState({ version: '1.0.1', buildTime: null });
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -37,6 +38,27 @@ const DownloadSection = () => {
     }
   };
 
+  useEffect(() => {
+    // Fetch build metadata
+    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
+    fetch(`${basePath}/build-info.json`)
+      .then(res => res.json())
+      .then(data => setBuildInfo(data))
+      .catch(err => console.log('Build info not available:', err));
+  }, []);
+
+  const formatBuildTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   const systemRequirements = [
     'macOS 10.15 (Catalina) or later',
     'Intel or Apple Silicon Mac',
@@ -56,8 +78,11 @@ const DownloadSection = () => {
             <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Dingo Track" className="download-app-icon" />
             <div className="download-details">
               <h3>Dingo Track</h3>
-              <p className="version">Version 1.0.0</p>
+              <p className="version">Version {buildInfo.version}</p>
               <p className="platform">macOS • Universal (Intel + Apple Silicon)</p>
+              {buildInfo.buildTime && (
+                <p className="build-time">Built: {formatBuildTime(buildInfo.buildTime)}</p>
+              )}
             </div>
           </div>
 
