@@ -78,7 +78,8 @@
         }
       ],
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "notarize": false
     },
     "afterSign": "scripts/notarize.js",
     "mas": {
