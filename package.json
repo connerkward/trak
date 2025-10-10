@@ -75,12 +75,6 @@
             "arm64",
             "x64"
           ]
-        },
-        {
-          "target": "mas",
-          "arch": [
-            "universal"
-          ]
         }
       ],
       "hardenedRuntime": true,
@@ -94,7 +88,6 @@
       "entitlements": "resources/entitlements.mas.plist",
       "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
       "hardenedRuntime": false,
-      "identity": "Conner Ward (N4YGB5B92K)",
       "provisioningProfile": "resources/Dingo_Track_Mac_App_Store.provisionprofile",
       "mergeASARs": true
     },
