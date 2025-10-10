@@ -1,12 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './PrivacyPolicy.css';
 
 const PrivacyPolicy = () => {
+  const [buildInfo, setBuildInfo] = useState({ buildTime: null });
+
+  useEffect(() => {
+    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
+    fetch(`${basePath}/build-info.json`)
+      .then(res => res.json())
+      .then(data => setBuildInfo(data))
+      .catch(err => console.log('Build info not available:', err));
+  }, []);
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'October 10, 2024';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="privacy-policy">
       <div className="privacy-container">
         <h1>Privacy Policy</h1>
-        <p className="last-updated">Last updated: October 10, 2024</p>
+        <p className="last-updated">Last updated: {formatDate(buildInfo.buildTime)}</p>
 
         <section>
           <h2>Introduction</h2>

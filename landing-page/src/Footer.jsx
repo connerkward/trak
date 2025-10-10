@@ -1,6 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Footer = () => {
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    // Update year from build info if available
+    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
+    fetch(`${basePath}/build-info.json`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.buildTime) {
+          const buildYear = new Date(data.buildTime).getFullYear();
+          setCurrentYear(buildYear);
+        }
+      })
+      .catch(() => {
+        // Use current year as fallback
+        setCurrentYear(new Date().getFullYear());
+      });
+  }, []);
+
   return (
     <footer className="footer">
       <div className="footer-content">
@@ -31,7 +50,7 @@ const Footer = () => {
       </div>
 
       <div className="footer-bottom">
-        <p>&copy; 2024 Dingo Track. All rights reserved.</p>
+        <p>&copy; {currentYear} Dingo Track. All rights reserved.</p>
       </div>
     </footer>
   );
