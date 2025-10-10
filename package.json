@@ -1,6 +1,6 @@
 {
   "name": "@every-time/dingo-track",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Time tracking application",
   "main": "./out/main/index.js",
   "private": true,
@@ -17,6 +17,7 @@
     "pack": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mas": "npm run build && electron-builder --mac mas",
     "dist:win": "npm run build && electron-builder --win",
     "dist:linux": "npm run build && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps",
@@ -52,7 +53,7 @@
     "vitest": "^3.2.4"
   },
   "build": {
-    "appId": "com.everytime.dingo-track",
+    "appId": "com.everytime.trak",
     "productName": "Dingo Track",
     "directories": {
       "output": "dist-electron"
@@ -63,17 +64,39 @@
       ".env"
     ],
     "asar": false,
-    "icon": "assets/app-icon.png",
+    "icon": "assets/app-icon.icns",
     "mac": {
-      "icon": "assets/app-icon.png",
+      "icon": "assets/app-icon.icns",
       "category": "public.app-category.productivity",
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
-      }
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "mas",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mas.plist",
+      "entitlementsInherit": "resources/entitlements.mas.inherit.plist"
+    },
+    "mas": {
+      "type": "distribution",
+      "category": "public.app-category.productivity",
+      "entitlements": "resources/entitlements.mas.plist",
+      "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
+      "hardenedRuntime": false,
+      "identity": "Conner Ward (N4YGB5B92K)",
+      "provisioningProfile": "resources/Dingo_Track_Mac_App_Store.provisionprofile",
+      "mergeASARs": true
     },
     "dmg": {
       "format": "ULFO"

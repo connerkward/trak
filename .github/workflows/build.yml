@@ -45,4 +45,31 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: dingo-track-${{ matrix.os }}
-        path: dist-electron/ 
+        path: dist-electron/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          artifacts/dingo-track-macos-latest/*.dmg
+          artifacts/dingo-track-windows-latest/*.exe
+          artifacts/dingo-track-ubuntu-latest/*.AppImage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
