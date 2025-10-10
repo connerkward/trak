@@ -1,0 +1,104 @@
+.privacy-policy {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #ffffff;
+  padding: 80px 24px 48px;
+}
+
+.privacy-container {
+  max-width: 800px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.privacy-container h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+.last-updated {
+  color: #b0b0b0;
+  font-size: 0.875rem;
+  margin-bottom: 32px;
+}
+
+.privacy-container section {
+  margin-bottom: 32px;
+}
+
+.privacy-container h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  margin-top: 32px;
+  color: #ffffff;
+}
+
+.privacy-container h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  margin-top: 20px;
+  color: #e0e0e0;
+}
+
+.privacy-container p {
+  line-height: 1.8;
+  color: #d0d0d0;
+  margin-bottom: 16px;
+}
+
+.privacy-container ul,
+.privacy-container ol {
+  margin-left: 24px;
+  margin-bottom: 16px;
+  line-height: 1.8;
+  color: #d0d0d0;
+}
+
+.privacy-container li {
+  margin-bottom: 8px;
+}
+
+.privacy-container a {
+  color: #007AFF;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.privacy-container a:hover {
+  color: #0056CC;
+  text-decoration: underline;
+}
+
+.summary-box {
+  background: rgba(0, 122, 255, 0.1);
+  border-left: 4px solid #007AFF;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .privacy-container {
+    padding: 32px 24px;
+  }
+
+  .privacy-container h1 {
+    font-size: 2rem;
+  }
+
+  .privacy-container h2 {
+    font-size: 1.5rem;
+  }
+
+  .privacy-container h3 {
+    font-size: 1.125rem;
+  }
+}
+

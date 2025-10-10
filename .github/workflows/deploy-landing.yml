@@ -49,7 +49,9 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DIST_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           DIST_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        run: pnpm dist:mac
+        run: |
+          pnpm build:electron
+          npx electron-builder --mac dmg --universal
 
       - name: List build artifacts
         run: |
@@ -62,7 +64,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dingo-track-dmg
-          path: dist-electron/*.dmg
+          path: |
+            dist-electron/*.dmg
+            !dist-electron/*.blockmap
           retention-days: 30
         continue-on-error: true
 
