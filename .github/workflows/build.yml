@@ -32,7 +32,20 @@ jobs:
     - name: Setup code signing (macOS)
       if: matrix.os == 'macos-latest'
       run: |
+        # Decode certificate
         echo "${{ secrets.CSC_LINK_BASE64 }}" | base64 --decode > certificate.p12
+        
+        # Create temporary keychain
+        security create-keychain -p actions temp.keychain
+        security default-keychain -s temp.keychain
+        security unlock-keychain -p actions temp.keychain
+        security set-keychain-settings -t 3600 -u temp.keychain
+        
+        # Import certificate
+        security import certificate.p12 -k temp.keychain -P "${{ secrets.CSC_KEY_PASSWORD }}" -T /usr/bin/codesign -T /usr/bin/productsign
+        security set-key-partition-list -S apple-tool:,apple: -s -k actions temp.keychain
+        
+        # Set environment variables
         echo "CSC_LINK=$PWD/certificate.p12" >> $GITHUB_ENV
         echo "CSC_KEY_PASSWORD=${{ secrets.CSC_KEY_PASSWORD }}" >> $GITHUB_ENV
         echo "APPLE_ID=${{ secrets.APPLE_ID }}" >> $GITHUB_ENV

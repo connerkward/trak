@@ -1,9 +1,14 @@
-const { notarize } = require('@electron/notarize');
 require('dotenv').config();
 
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
   if (electronPlatformName !== 'darwin') {
+    return;
+  }
+
+  // Skip notarization for temporary universal build dirs
+  if (appOutDir.includes('-temp')) {
+    console.log('⏭️  Skipping notarization for temporary build:', appOutDir);
     return;
   }
 
@@ -23,6 +28,9 @@ exports.default = async function notarizing(context) {
   }
 
   try {
+    // Dynamic import for ES module
+    const { notarize } = await import('@electron/notarize');
+    
     await notarize({
       tool: 'notarytool',
       appPath: appPath,
