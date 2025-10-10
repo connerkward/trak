@@ -120,14 +120,32 @@ The app uses:
 
 ## Building for Production
 
+### Unsigned Build (Testing Only)
+
 ```bash
-npm run build
+npm run dist:mac
 ```
+
+**Note:** Users will get "developer cannot be verified" warning. See workaround in CODE_SIGNING.md.
+
+### Signed & Notarized Build (Production)
+
+Requires Apple Developer account ($99/year). See [CODE_SIGNING.md](./CODE_SIGNING.md) for complete setup.
+
+1. Set up code signing (one-time):
+   - Create Developer ID certificate
+   - Configure environment variables in `.env` (copy from `env.template`)
+2. Build:
+   ```bash
+   npm run dist:mac
+   ```
 
 This will:
 1. Compile TypeScript files
-2. Package the Electron app
-3. Create a distributable `.dmg` file (on macOS)
+2. Sign the app with your Developer ID
+3. Package the Electron app
+4. Notarize with Apple (takes 2-10 minutes)
+5. Create a distributable `.dmg` file
 
 ## License
 

@@ -80,7 +80,10 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mas.plist",
-      "entitlementsInherit": "resources/entitlements.mas.inherit.plist"
+      "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
+      "notarize": {
+        "teamId": "${APPLE_TEAM_ID}"
+      }
     },
     "mas": {
       "type": "distribution",
