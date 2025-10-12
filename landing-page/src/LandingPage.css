@@ -93,14 +93,50 @@ html, body {
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-width: 160px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.header-download-btn:hover {
+.header-download-btn:hover:not(:disabled) {
   background: #0056CC;
+}
+
+.header-download-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.header-download-btn.downloading {
+  background: #28a745;
 }
 
 .header-download-btn svg {
   transform: translateY(1px);
+}
+
+.header-download-btn .download-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.header-download-btn .progress-bar {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: width 0.2s ease;
+}
+
+.header-download-btn svg,
+.header-download-btn span {
+  position: relative;
+  z-index: 2;
 }
 
 /* Hero Section */
@@ -208,6 +244,10 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  overflow: hidden;
+  min-width: 220px;
+  justify-content: center;
 }
 
 .download-btn.primary {
@@ -215,11 +255,39 @@ html, body {
   color: white;
 }
 
-
-
-.download-btn.primary:hover {
+.download-btn.primary:hover:not(:disabled) {
   background: #0056CC;
   transform: translateY(-2px);
+}
+
+.download-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.download-btn.downloading {
+  background: #28a745;
+}
+
+.download-btn .download-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.download-btn .progress-bar {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: width 0.2s ease;
+}
+
+.download-btn .download-icon,
+.download-btn span:not(.download-icon) {
+  position: relative;
+  z-index: 2;
 }
 
 .hero-features {
