@@ -113,6 +113,35 @@ export class TimerService {
     return timer;
   }
 
+  renameTimer(oldName: string, newName: string, calendarId: string): Timer {
+    if (!this.currentUserId) {
+      throw new Error('No user is currently authenticated');
+    }
+
+    const timers = this.getAllTimers();
+    const timerIndex = timers.findIndex(t => t.name === oldName);
+    
+    if (timerIndex === -1) {
+      throw new Error('Timer not found');
+    }
+
+    // Check if new name already exists
+    if (oldName !== newName && timers.find(t => t.name === newName)) {
+      throw new Error('Timer with this name already exists');
+    }
+
+    // Cannot rename active timer
+    if (this.activeTimers.has(oldName)) {
+      throw new Error('Cannot rename active timer. Stop it first.');
+    }
+
+    // Update timer
+    timers[timerIndex] = { name: newName, calendarId };
+    this.store.set(`timers_${this.currentUserId}`, timers);
+    
+    return timers[timerIndex];
+  }
+
   deleteTimer(name: string): boolean {
     if (!this.currentUserId) {
       throw new Error('No user is currently authenticated');

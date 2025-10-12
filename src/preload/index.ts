@@ -13,6 +13,7 @@ export interface ElectronAPI {
   getActiveTimers: () => Promise<Record<string, string>>;
   addTimer: (name: string, calendarId: string) => Promise<Timer>;
   saveTimer: (name: string, calendarId: string) => Promise<Timer>;
+  renameTimer: (oldName: string, newName: string, calendarId: string) => Promise<Timer>;
   deleteTimer: (name: string) => Promise<boolean>;
   startStopTimer: (name: string) => Promise<{ action: 'started' | 'stopped'; startTime?: Date; duration?: number }>;
   
@@ -42,6 +43,7 @@ const electronAPI: ElectronAPI = {
   getActiveTimers: () => ipcRenderer.invoke('get-active-timers'),
   addTimer: (name: string, calendarId: string) => ipcRenderer.invoke('add-timer', name, calendarId),
   saveTimer: (name: string, calendarId: string) => ipcRenderer.invoke('save-timer', name, calendarId),
+  renameTimer: (oldName: string, newName: string, calendarId: string) => ipcRenderer.invoke('rename-timer', oldName, newName, calendarId),
   deleteTimer: (name: string) => ipcRenderer.invoke('delete-timer', name),
   startStopTimer: (name: string) => ipcRenderer.invoke('start-stop-timer', name),
   

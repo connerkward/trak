@@ -17,11 +17,14 @@ const LiveTimer: React.FC<{ startTime: Date }> = ({ startTime }) => {
       const diff = now.getTime() - startTime.getTime();
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
       
       if (hours > 0) {
-        setElapsed(`${hours}h ${minutes}m`);
+        setElapsed(`${hours}h ${minutes}m ${seconds}s`);
+      } else if (minutes > 0) {
+        setElapsed(`${minutes}m ${seconds}s`);
       } else {
-        setElapsed(`${minutes}m`);
+        setElapsed(`${seconds}s`);
       }
     };
 

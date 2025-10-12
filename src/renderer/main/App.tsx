@@ -12,11 +12,14 @@ const LiveTimer: React.FC<{ startTime: Date }> = ({ startTime }) => {
       const diff = now.getTime() - startTime.getTime();
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
       
       if (hours > 0) {
-        setElapsed(`${hours}h ${minutes}m`);
+        setElapsed(`${hours}h ${minutes}m ${seconds}s`);
+      } else if (minutes > 0) {
+        setElapsed(`${minutes}m ${seconds}s`);
       } else {
-        setElapsed(`${minutes}m`);
+        setElapsed(`${seconds}s`);
       }
     };
 
@@ -37,6 +40,8 @@ const App: React.FC = () => {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState<boolean>(false);
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [editingTimer, setEditingTimer] = useState<string | null>(null);
+  const [editName, setEditName] = useState<string>('');
   const taskListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -194,6 +199,33 @@ const App: React.FC = () => {
     }
   };
 
+  const handleEditTimer = (timer: Timer) => {
+    setEditingTimer(timer.name);
+    setEditName(timer.name);
+  };
+
+  const handleSaveEdit = async (oldName: string, calendarId: string) => {
+    if (!editName.trim() || editName === oldName) {
+      setEditingTimer(null);
+      return;
+    }
+
+    try {
+      await window.api.renameTimer(oldName, editName.trim(), calendarId);
+      await loadData();
+      setEditingTimer(null);
+      setEditName('');
+    } catch (error) {
+      console.error('Failed to rename timer:', error);
+      alert('Failed to rename timer: ' + (error as Error).message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTimer(null);
+    setEditName('');
+  };
+
   const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -301,22 +333,64 @@ const App: React.FC = () => {
           timers.map((timer) => {
             const isActive = activeTimers[timer.name];
             const startTime = isActive ? new Date(activeTimers[timer.name]) : null;
+            const isEditing = editingTimer === timer.name;
             
             return (
               <div key={timer.name} className="task-item">
-                <div className="task-info">
-                  <div className="task-name">{timer.name}</div>
-                  <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
-                  {isActive && startTime && (
-                    <LiveTimer startTime={startTime} />
-                  )}
-                </div>
-                <button
-                  className={`task-button ${isActive ? 'stop' : ''}`}
-                  onClick={() => handleStartStop(timer)}
-                >
-                  {isActive ? 'Stop' : 'Start'}
-                </button>
+                {isEditing ? (
+                  <>
+                    <div className="task-info">
+                      <input
+                        type="text"
+                        className="edit-timer-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(timer.name, timer.calendarId);
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      className="task-button save"
+                      onClick={() => handleSaveEdit(timer.name, timer.calendarId)}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      className="task-button cancel"
+                      onClick={handleCancelEdit}
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="task-info">
+                      <div className="task-name">{timer.name}</div>
+                      <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
+                      {isActive && startTime && (
+                        <LiveTimer startTime={startTime} />
+                      )}
+                    </div>
+                    {!isActive && (
+                      <button
+                        className="task-button edit"
+                        onClick={() => handleEditTimer(timer)}
+                        title="Edit timer name"
+                      >
+                        ✎
+                      </button>
+                    )}
+                    <button
+                      className={`task-button ${isActive ? 'stop' : ''}`}
+                      onClick={() => handleStartStop(timer)}
+                    >
+                      {isActive ? 'Stop' : 'Start'}
+                    </button>
+                  </>
+                )}
               </div>
             );
           })

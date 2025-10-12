@@ -193,6 +193,9 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     show: false
   });
 
+  // Make window appear on current Space instead of switching Spaces
+  mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
   // Load the main renderer HTML
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173/main/');
@@ -529,6 +532,22 @@ ipcMain.handle('save-timer', async (event, name: string, calendarId: string) => 
     return result;
   } catch (error) {
     console.error('Error in save-timer handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('rename-timer', async (event, oldName: string, newName: string, calendarId: string) => {
+  try {
+    const result = timerService.renameTimer(oldName, newName, calendarId);
+    
+    // Notify all windows of data change
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('data-changed');
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Error in rename-timer handler:', error);
     throw error;
   }
 });

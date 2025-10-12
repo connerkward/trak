@@ -92,6 +92,22 @@
   font-style: italic;
 }
 
+.edit-timer-input {
+  background: var(--input-bg);
+  border: 1px solid var(--blue-color);
+  color: var(--text-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  width: 100%;
+  outline: none;
+}
+
+.edit-timer-input:focus {
+  border-color: var(--blue-color);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
 .task-button {
   background: none;
   border: 1px solid var(--blue-color);
@@ -109,6 +125,45 @@
   background-color: var(--blue-color);
   color: white;
   transform: translateY(-1px);
+}
+
+.task-button.edit {
+  color: var(--secondary-text-color);
+  border-color: var(--secondary-text-color);
+  min-width: 28px;
+  padding: 3px 6px;
+  margin-right: 4px;
+}
+
+.task-button.edit:hover {
+  background-color: var(--secondary-text-color);
+  color: white;
+}
+
+.task-button.save {
+  color: var(--green-color, #34c759);
+  border-color: var(--green-color, #34c759);
+  min-width: 28px;
+  padding: 3px 6px;
+  margin-right: 4px;
+}
+
+.task-button.save:hover {
+  background-color: var(--green-color, #34c759);
+  color: white;
+}
+
+.task-button.cancel {
+  color: var(--secondary-text-color);
+  border-color: var(--secondary-text-color);
+  min-width: 28px;
+  padding: 3px 6px;
+  margin-right: 4px;
+}
+
+.task-button.cancel:hover {
+  background-color: var(--secondary-text-color);
+  color: white;
 }
 
 .task-button.stop {
