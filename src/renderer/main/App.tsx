@@ -40,9 +40,12 @@ const App: React.FC = () => {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState<boolean>(false);
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [editingTimer, setEditingTimer] = useState<string | null>(null);
-  const [editName, setEditName] = useState<string>('');
+  const [swipedTimer, setSwipedTimer] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
   const taskListRef = useRef<HTMLDivElement>(null);
+  const swipeStartX = useRef<number>(0);
+  const swipeStartY = useRef<number>(0);
+  const isSwiping = useRef<boolean>(false);
 
   useEffect(() => {
     // Cache initial data load to prevent multiple redundant calls
@@ -199,31 +202,61 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEditTimer = (timer: Timer) => {
-    setEditingTimer(timer.name);
-    setEditName(timer.name);
-  };
-
-  const handleSaveEdit = async (oldName: string, calendarId: string) => {
-    if (!editName.trim() || editName === oldName) {
-      setEditingTimer(null);
-      return;
-    }
-
+  const handleDelete = async (timerName: string) => {
     try {
-      await window.api.renameTimer(oldName, editName.trim(), calendarId);
+      await window.api.deleteTimer(timerName);
       await loadData();
-      setEditingTimer(null);
-      setEditName('');
+      setSwipedTimer(null);
+      setSwipeOffset(0);
     } catch (error) {
-      console.error('Failed to rename timer:', error);
-      alert('Failed to rename timer: ' + (error as Error).message);
+      console.error('Failed to delete timer:', error);
+      alert('Failed to delete timer');
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingTimer(null);
-    setEditName('');
+  const handleSwipeStart = (e: React.MouseEvent | React.TouchEvent, timerName: string) => {
+    // Don't allow swiping active timers
+    if (activeTimers[timerName]) return;
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    swipeStartX.current = clientX;
+    swipeStartY.current = clientY;
+    isSwiping.current = false;
+    setSwipedTimer(timerName);
+  };
+
+  const handleSwipeMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!swipedTimer) return;
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    
+    const deltaX = swipeStartX.current - clientX;
+    const deltaY = Math.abs(swipeStartY.current - clientY);
+
+    // Only start swiping if horizontal movement is dominant
+    if (!isSwiping.current && Math.abs(deltaX) > 10 && deltaY < 30) {
+      isSwiping.current = true;
+    }
+
+    if (isSwiping.current && deltaX > 0) {
+      // Limit swipe to 80px (delete button width)
+      setSwipeOffset(Math.min(deltaX, 80));
+    }
+  };
+
+  const handleSwipeEnd = () => {
+    if (swipeOffset > 40) {
+      // Keep swiped open
+      setSwipeOffset(80);
+    } else {
+      // Reset
+      setSwipedTimer(null);
+      setSwipeOffset(0);
+    }
+    isSwiping.current = false;
   };
 
   const handleAddTask = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -333,64 +366,46 @@ const App: React.FC = () => {
           timers.map((timer) => {
             const isActive = activeTimers[timer.name];
             const startTime = isActive ? new Date(activeTimers[timer.name]) : null;
-            const isEditing = editingTimer === timer.name;
+            const isSwiped = swipedTimer === timer.name;
+            const offset = isSwiped ? swipeOffset : 0;
             
             return (
-              <div key={timer.name} className="task-item">
-                {isEditing ? (
-                  <>
-                    <div className="task-info">
-                      <input
-                        type="text"
-                        className="edit-timer-input"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveEdit(timer.name, timer.calendarId);
-                          if (e.key === 'Escape') handleCancelEdit();
-                        }}
-                        autoFocus
-                      />
-                    </div>
-                    <button
-                      className="task-button save"
-                      onClick={() => handleSaveEdit(timer.name, timer.calendarId)}
-                    >
-                      ✓
-                    </button>
-                    <button
-                      className="task-button cancel"
-                      onClick={handleCancelEdit}
-                    >
-                      ✕
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="task-info">
-                      <div className="task-name">{timer.name}</div>
-                      <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
-                      {isActive && startTime && (
-                        <LiveTimer startTime={startTime} />
-                      )}
-                    </div>
-                    {!isActive && (
-                      <button
-                        className="task-button edit"
-                        onClick={() => handleEditTimer(timer)}
-                        title="Edit timer name"
-                      >
-                        ✎
-                      </button>
+              <div 
+                key={timer.name} 
+                className={`task-item-wrapper ${isSwiped ? 'swiped' : ''}`}
+                onMouseDown={(e) => handleSwipeStart(e, timer.name)}
+                onTouchStart={(e) => handleSwipeStart(e, timer.name)}
+                onMouseMove={handleSwipeMove}
+                onTouchMove={handleSwipeMove}
+                onMouseUp={handleSwipeEnd}
+                onTouchEnd={handleSwipeEnd}
+                onMouseLeave={handleSwipeEnd}
+              >
+                <div 
+                  className="task-item"
+                  style={{ transform: `translateX(-${offset}px)` }}
+                >
+                  <div className="task-info">
+                    <div className="task-name">{timer.name}</div>
+                    <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
+                    {isActive && startTime && (
+                      <LiveTimer startTime={startTime} />
                     )}
-                    <button
-                      className={`task-button ${isActive ? 'stop' : ''}`}
-                      onClick={() => handleStartStop(timer)}
-                    >
-                      {isActive ? 'Stop' : 'Start'}
-                    </button>
-                  </>
-                )}
+                  </div>
+                  <button
+                    className={`task-button ${isActive ? 'stop' : ''}`}
+                    onClick={() => handleStartStop(timer)}
+                  >
+                    {isActive ? 'Stop' : 'Start'}
+                  </button>
+                </div>
+                <button
+                  className="delete-button"
+                  onClick={() => handleDelete(timer.name)}
+                  style={{ opacity: offset / 80 }}
+                >
+                  Delete
+                </button>
               </div>
             );
           })

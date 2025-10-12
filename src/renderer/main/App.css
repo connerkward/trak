@@ -42,26 +42,52 @@
   background: var(--secondary-text-color);
 }
 
+.task-item-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-item-wrapper:last-child {
+  border-bottom: none;
+}
+
 .task-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  transition: all 0.15s ease;
+  transition: transform 0.2s ease;
   cursor: pointer;
   user-select: none;
   min-height: 28px;
-  border-bottom: 1px solid var(--border-color);
   position: relative;
+  background-color: var(--bg-color);
+  z-index: 2;
 }
 
 .task-item:hover {
   background-color: var(--hover-color);
-  transform: translateX(1px);
 }
 
-.task-item:last-child {
-  border-bottom: none;
+.delete-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: var(--red-color);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: opacity 0.2s ease;
+  z-index: 1;
+}
+
+.delete-button:hover {
+  background: #d32f2f;
 }
 
 .task-info {
@@ -92,22 +118,6 @@
   font-style: italic;
 }
 
-.edit-timer-input {
-  background: var(--input-bg);
-  border: 1px solid var(--blue-color);
-  color: var(--text-color);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  width: 100%;
-  outline: none;
-}
-
-.edit-timer-input:focus {
-  border-color: var(--blue-color);
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
-}
-
 .task-button {
   background: none;
   border: 1px solid var(--blue-color);
@@ -125,45 +135,6 @@
   background-color: var(--blue-color);
   color: white;
   transform: translateY(-1px);
-}
-
-.task-button.edit {
-  color: var(--secondary-text-color);
-  border-color: var(--secondary-text-color);
-  min-width: 28px;
-  padding: 3px 6px;
-  margin-right: 4px;
-}
-
-.task-button.edit:hover {
-  background-color: var(--secondary-text-color);
-  color: white;
-}
-
-.task-button.save {
-  color: var(--green-color, #34c759);
-  border-color: var(--green-color, #34c759);
-  min-width: 28px;
-  padding: 3px 6px;
-  margin-right: 4px;
-}
-
-.task-button.save:hover {
-  background-color: var(--green-color, #34c759);
-  color: white;
-}
-
-.task-button.cancel {
-  color: var(--secondary-text-color);
-  border-color: var(--secondary-text-color);
-  min-width: 28px;
-  padding: 3px 6px;
-  margin-right: 4px;
-}
-
-.task-button.cancel:hover {
-  background-color: var(--secondary-text-color);
-  color: white;
 }
 
 .task-button.stop {

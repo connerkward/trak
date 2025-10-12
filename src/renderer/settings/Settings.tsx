@@ -11,7 +11,6 @@ interface FormData {
 const Settings: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [editingTimer, setEditingTimer] = useState<Timer | null>(null);
   const [hiddenCalendars, setHiddenCalendars] = useState<string[]>([]);
   const [formData, setFormData] = useState<FormData>({ name: '', calendarId: '' });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -77,7 +76,6 @@ const Settings: React.FC = () => {
       setCalendars([]);
       setTimers([]);
       setFormData({ name: '', calendarId: '' });
-      setEditingTimer(null);
       setHiddenCalendars([]);
     }) : null;
 
@@ -111,23 +109,17 @@ const Settings: React.FC = () => {
     }
 
     try {
-      await window.api.saveTimer(formData.name.trim(), formData.calendarId);
+      await window.api.addTimer(formData.name.trim(), formData.calendarId);
       
       // Refresh data from backend (same as main window)
       await loadData();
 
       // Reset form
       setFormData({ name: '', calendarId: '' });
-      setEditingTimer(null);
     } catch (error) {
-      console.error('Failed to save timer:', error);
-      alert('Failed to save timer');
+      console.error('Failed to add timer:', error);
+      alert('Failed to add timer');
     }
-  };
-
-  const handleEdit = (timer: Timer) => {
-    setEditingTimer(timer);
-    setFormData({ name: timer.name, calendarId: timer.calendarId });
   };
 
   const handleDelete = async (name: string) => {
@@ -218,7 +210,6 @@ const Settings: React.FC = () => {
       setCalendars([]);
       setTimers([]);
       setFormData({ name: '', calendarId: '' });
-      setEditingTimer(null);
       
       alert('✅ Successfully logged out. You can now re-authenticate if needed.');
     } catch (error) {
@@ -346,21 +337,8 @@ const Settings: React.FC = () => {
                 <div className="help-text">Select which calendar to create events in</div>
               </div>
               <button type="submit" className="btn btn-primary">
-                {editingTimer ? 'Update Timer' : 'Add Timer'}
+                Add Timer
               </button>
-              {editingTimer && (
-                <button 
-                  type="button" 
-                  className="btn"
-                  onClick={() => {
-                    setEditingTimer(null);
-                    setFormData({ name: '', calendarId: '' });
-                  }}
-                  style={{ marginLeft: '12px' }}
-                >
-                  Cancel
-                </button>
-              )}
             </form>
           </div>
 
@@ -409,12 +387,6 @@ const Settings: React.FC = () => {
                       </div>
                     </div>
                     <div className="timer-actions">
-                      <button
-                        className="btn"
-                        onClick={() => handleEdit(timer)}
-                      >
-                        Edit
-                      </button>
                       <button
                         className="btn btn-danger"
                         onClick={() => handleDelete(timer.name)}
