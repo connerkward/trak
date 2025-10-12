@@ -13,8 +13,9 @@ export class GoogleCalendarServiceSimple {
 
   constructor() {
     this.store = new SimpleStore({ name: 'dingo-track' });
-    this.clientId = process.env.GOOGLE_CLIENT_ID || '';
-    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
+    // Use bundled credentials in production, env vars in development
+    this.clientId = process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || '';
+    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.DIST_GOOGLE_CLIENT_SECRET || '';
   }
 
   // Simple HTTP request helper
