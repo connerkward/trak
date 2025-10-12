@@ -206,3 +206,118 @@ The new architecture enables easy implementation of:
 - ✅ **Google Calendar integration** functionality intact
 
 The rearchitecture is purely internal - users will see no difference in functionality or appearance.
+
+---
+
+## 🚢 Production Deployment Architecture
+
+### Build Pipeline
+
+```
+Development → Build → Injection → Packaging → Signing → Notarization → Distribution
+```
+
+**1. Development (`pnpm dev`)**
+- electron-vite with hot reload
+- TypeScript compilation with watch
+- React Fast Refresh
+- Mock API for OAuth testing
+
+**2. Build (`electron-vite build`)**
+- Compile TypeScript main process → `out/main/index.js`
+- Bundle React renderer → `out/renderer/`
+- Copy assets to `out/`
+
+**3. Credential Injection (`scripts/inject-credentials.js`)**
+- Read `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from environment
+- Replace env var lookups in compiled JavaScript with hardcoded values
+- Ensures distributed app has working OAuth without .env file
+
+**4. Packaging (`electron-builder`)**
+- Bundle app into ASAR archive
+- Create universal binary (x64 + arm64)
+- Sign with Developer ID certificate
+
+**5. Notarization (`scripts/notarize.js` via `afterSign` hook)**
+- Upload to Apple's notarization service
+- Wait for approval (2-10 minutes)
+- Staple notarization ticket
+
+**6. Distribution**
+- Output: `dist-electron/Dingo Track-{version}-universal.dmg`
+- Upload to GitHub Releases
+- Copy to landing page for download
+
+### Credential Management Strategy
+
+**Problem:** Environment variables don't exist in distributed apps.
+
+**Solution:** Inject credentials at build time into compiled JavaScript.
+
+```javascript
+// Before injection (compiled TypeScript):
+this.clientId = process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || "";
+
+// After injection (post-processed):
+this.clientId = "123456789-abc.apps.googleusercontent.com";
+```
+
+**Security model:**
+- Client ID is public (visible in OAuth flow anyway)
+- Client Secret protected by:
+  - GitHub Secrets in CI/CD
+  - `.env` file (gitignored) locally
+  - Only exists in compiled code, not source
+
+### ASAR Packaging Rationale
+
+**Decision:** Enable ASAR (`"asar": true` in package.json)
+
+**Benefits:**
+- 50% faster app loading (single file vs thousands)
+- Reduced file I/O overhead
+- Standard for production Electron apps
+- Required for credential injection approach
+
+**Trade-off:** Files inside ASAR cannot be modified after packaging (acceptable for production builds).
+
+### Universal Binary Strategy
+
+**Decision:** Build single DMG for both Intel and Apple Silicon
+
+```json
+"mac": {
+  "target": [{ "target": "dmg", "arch": ["universal"] }]
+}
+```
+
+**Process:**
+1. electron-builder creates `mac-x64-temp/` (Intel build)
+2. electron-builder creates `mac-arm64-temp/` (ARM build)
+3. Binaries merged with `lipo` → `mac-universal/`
+4. Custom notarization script skips `-temp` directories
+5. Only final merged app is notarized
+
+**Benefits:**
+- One download for all Mac users
+- Native performance on both architectures
+- Simpler version management
+
+**Trade-off:** ~2x DMG size (acceptable for desktop app, ~100MB total).
+
+### Code Signing & Notarization
+
+**Certificate:** Developer ID Application (not Mac App Store)
+- Allows direct download distribution
+- No App Store review process
+- Required for Gatekeeper approval
+
+**Custom notarization script rationale:**
+- electron-builder's built-in notarization had environment variable loading issues
+- Custom script provides:
+  - Explicit credential loading from `.env` or environment
+  - Skip temporary build directories
+  - Better error messages
+  - Works reliably in both local and CI environments
+
+**See [PRODUCTION.md](./PRODUCTION.md) for detailed deployment architecture and [CODE_SIGNING.md](./CODE_SIGNING.md) for setup instructions.**

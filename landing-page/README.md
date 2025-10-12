@@ -1,6 +1,6 @@
 # Dingo Track Landing Page
 
-This is the landing page for the Dingo Track Mac app, built with React and Vite.
+Marketing website for Dingo Track, built with React and Vite. Includes landing page, privacy policy, and terms of service.
 
 ## Development
 
@@ -8,35 +8,74 @@ This is the landing page for the Dingo Track Mac app, built with React and Vite.
 # Start development server
 pnpm dev:landing
 
-# Build for production
-pnpm build:landing
-
-# Build for GitHub Pages (with correct base path)
-pnpm build:landing:gh-pages
+# Build for production (GitHub Pages)
+pnpm build:landing:prod
 ```
 
 ## Structure
 
-- `src/` - React components and styles
-- `public/` - Static assets (DMG files will be placed here by GitHub Actions)
-- `index.html` - Entry point
+```
+landing-page/
+├── src/
+│   ├── LandingPage.jsx          # Main landing page
+│   ├── PrivacyPolicy.jsx        # Privacy Policy page
+│   ├── TermsOfService.jsx       # Terms of Service page
+│   ├── main.jsx                 # Entry point for landing page
+│   ├── privacy-main.jsx         # Entry point for privacy policy
+│   └── terms-main.jsx           # Entry point for terms of service
+├── public/                      # Static assets
+│   └── downloads/              # DMG files (added by GitHub Actions)
+├── index.html                   # Landing page HTML
+├── privacy-policy.html          # Privacy Policy HTML
+└── terms-of-service.html        # Terms of Service HTML
+```
+
+## Pages
+
+### Landing Page
+- Main marketing page with features, demo, and download button
+- URL: `https://connerkward.github.io/trak/`
+
+### Privacy Policy
+- Required for Google OAuth verification
+- URL: `https://connerkward.github.io/trak/privacy-policy.html`
+
+### Terms of Service
+- Legal terms and Google API compliance
+- URL: `https://connerkward.github.io/trak/terms-of-service.html`
 
 ## GitHub Actions Integration
 
-The landing page is automatically built and deployed via GitHub Actions when:
+The landing page is automatically built and deployed via `.github/workflows/deploy-landing.yml` when:
 - Changes are pushed to the `main` branch
 - The workflow is manually triggered
 
-The workflow:
-1. Builds the desktop app DMG on macOS
-2. Builds the landing page on Ubuntu
-3. Copies the DMG to the landing page for download
-4. Deploys to GitHub Pages
+**Workflow steps:**
+1. Build signed & notarized DMG on macOS runner
+2. Copy DMG to `landing-page/public/downloads/`
+3. Build landing page with production base path (`/trak/`)
+4. Deploy to GitHub Pages
 
 ## Download Links
 
-The DMG file will be available at:
-- Development: `/downloads/Dingo Track-1.0.0.dmg`
-- Production: `/trak/downloads/Dingo Track-1.0.0.dmg`
+The DMG file is available at:
+- Development: `http://localhost:5174/downloads/Dingo Track-{version}-universal.dmg`
+- Production: `https://connerkward.github.io/trak/downloads/Dingo Track-{version}-universal.dmg`
 
-All download buttons on the landing page will automatically use the correct URL based on the environment. 
+Download buttons automatically use the correct URL based on `process.env.NODE_ENV`.
+
+## Build Configuration
+
+### vite.config.js
+
+```javascript
+rollupOptions: {
+  input: {
+    main: resolve(__dirname, 'index.html'),
+    privacy: resolve(__dirname, 'privacy-policy.html'),
+    terms: resolve(__dirname, 'terms-of-service.html')
+  }
+}
+```
+
+Builds three separate HTML pages with shared React components. 

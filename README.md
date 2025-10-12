@@ -19,46 +19,6 @@ A Mac menu bar app for time tracking with Google Calendar integration.
 - **Settings Management**: Configure timers and calendar visibility
 - **Claude Desktop Integration**: Connect with Claude Desktop for natural language timer control
 
-## Getting Started
-
-### Prerequisites
-
-- macOS
-- Node.js and pnpm
-- Google Calendar API credentials (optional for development)
-
-### Installation
-
-1. Install dependencies:
-   ```bash
-   pnpm install --ignore-workspace
-   ```
-
-2. Build the app:
-   ```bash
-   npm run build:desktop
-   ```
-
-3. Run in development mode:
-   ```bash
-   npm run dev
-   ```
-
-### Google Calendar Setup
-
-**🎉 For End Users (Distributed App):**
-- **No setup required!** Just click "Connect Google Calendar" and log into your Google account.
-- The app includes pre-configured OAuth credentials for immediate use.
-
-**⚙️ For Developers:**
-- OAuth credentials are bundled with the app for distribution
-- For development, you can override with your own credentials
-- See [GOOGLE_SETUP.md](./GOOGLE_SETUP.md) for development setup
-
-**🔐 Security Note:** 
-- End users authenticate through Google's secure OAuth flow
-- No credentials are stored locally until you authorize the app
-
 ## Usage
 
 ### Main Interface
@@ -84,22 +44,37 @@ A Mac menu bar app for time tracking with Google Calendar integration.
 ## File Structure
 
 ```
-apps/dingo-track/
-├── desktop/                 # Electron main process
-│   ├── main.ts             # App entry point and window management
-│   ├── preload.js          # IPC bridge between main and renderer
-│   ├── googleCalendarService.ts  # Google Calendar API integration
-│   ├── timerService.ts     # Timer logic and persistence
-│   └── mcp-server.js       # Claude Desktop MCP server
-├── src/                    # React components
-│   ├── App.jsx             # Main timer interface
-│   ├── Settings.jsx        # Settings window
-│   ├── App.css             # Main app styles
-│   ├── Settings.css        # Settings styles
-│   ├── index.html          # Main window HTML
-│   └── settings.html       # Settings window HTML
-├── assets/                 # Icons and resources
-└── package.json           # Dependencies and scripts
+src/
+├── main/                      # Main process (Node.js/Electron)
+│   ├── index.ts              # App entry point and window management
+│   ├── bootstrap.ts          # Service bootstrapping
+│   ├── services/             # Business logic services
+│   │   ├── GoogleCalendarService.ts
+│   │   ├── timerService.ts
+│   │   └── StorageService.ts
+│   └── utils/
+│       └── ServiceContainer.ts
+├── preload/                   # Preload scripts
+│   └── index.ts              # Type-safe IPC bridge
+├── renderer/                  # Frontend (React)
+│   ├── main/                 # Main window
+│   │   ├── App.tsx
+│   │   └── index.html
+│   ├── settings/             # Settings window
+│   │   ├── Settings.tsx
+│   │   └── index.html
+│   └── shared/               # Shared renderer code
+│       └── stores/
+│           └── useAppStore.ts
+├── shared/                    # Code shared between processes
+│   └── types/
+│       └── index.ts          # Shared TypeScript types
+├── assets/                    # Icons and resources
+├── scripts/                   # Build scripts
+│   ├── inject-credentials.js # OAuth credential injection
+│   └── notarize.js           # Custom notarization script
+└── landing-page/             # Marketing website
+    └── src/                  # React components for landing page
 ```
 
 ## Development
@@ -118,34 +93,7 @@ The app uses:
 - **Main Process**: Manages windows, tray icon, and IPC communication
 - **React Components**: Provide the user interface for timer management
 
-## Building for Production
-
-### Unsigned Build (Testing Only)
-
-```bash
-npm run dist:mac
-```
-
-**Note:** Users will get "developer cannot be verified" warning. See workaround in CODE_SIGNING.md.
-
-### Signed & Notarized Build (Production)
-
-Requires Apple Developer account ($99/year). See [CODE_SIGNING.md](./CODE_SIGNING.md) for complete setup.
-
-1. Set up code signing (one-time):
-   - Create Developer ID certificate
-   - Configure environment variables in `.env` (copy from `env.template`)
-2. Build:
-   ```bash
-   npm run dist:mac
-   ```
-
-This will:
-1. Compile TypeScript files
-2. Sign the app with your Developer ID
-3. Package the Electron app
-4. Notarize with Apple (takes 2-10 minutes)
-5. Create a distributable `.dmg` file
+See [PRODUCTION.md](./PRODUCTION.md) for detailed architecture and deployment decisions.
 
 ## License
 
