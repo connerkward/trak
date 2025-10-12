@@ -61,10 +61,9 @@
     },
     "files": [
       "out/**/*",
-      "assets/**/*",
-      ".env"
+      "assets/**/*"
     ],
-    "asar": false,
+    "asar": true,
     "icon": "assets/app-icon.icns",
     "mac": {
       "icon": "assets/app-icon.icns",

@@ -29,12 +29,20 @@ if (!fs.existsSync(mainJsPath)) {
 let content = fs.readFileSync(mainJsPath, 'utf8');
 
 // Replace the environment variable lookups with hardcoded credentials
-// Look for: process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || ''
-const clientIdPattern = /process\.env\.GOOGLE_CLIENT_ID\s*\|\|\s*process\.env\.DIST_GOOGLE_CLIENT_ID\s*\|\|\s*''/g;
-const clientSecretPattern = /process\.env\.GOOGLE_CLIENT_SECRET\s*\|\|\s*process\.env\.DIST_GOOGLE_CLIENT_SECRET\s*\|\|\s*''/g;
+// Look for: process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || ""
+const clientIdPattern = /process\.env\.GOOGLE_CLIENT_ID\s*\|\|\s*process\.env\.DIST_GOOGLE_CLIENT_ID\s*\|\|\s*""/g;
+const clientSecretPattern = /process\.env\.GOOGLE_CLIENT_SECRET\s*\|\|\s*process\.env\.DIST_GOOGLE_CLIENT_SECRET\s*\|\|\s*""/g;
 
-content = content.replace(clientIdPattern, `'${clientId}'`);
-content = content.replace(clientSecretPattern, `'${clientSecret}'`);
+const originalContent = content;
+content = content.replace(clientIdPattern, `"${clientId}"`);
+content = content.replace(clientSecretPattern, `"${clientSecret}"`);
+
+// Check if any replacements were actually made
+if (content === originalContent) {
+  console.log('⚠️  Pattern not found - credentials were not injected');
+  console.log('   Looking for: process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || ""');
+  process.exit(0);
+}
 
 // Write back
 fs.writeFileSync(mainJsPath, content, 'utf8');
