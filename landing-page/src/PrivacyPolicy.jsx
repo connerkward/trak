@@ -156,6 +156,14 @@ const PrivacyPolicy = () => {
           </p>
         </section>
       </div>
+
+      <footer className="privacy-footer">
+        <p>
+          <a href={process.env.NODE_ENV === 'production' ? '/trak/' : '/'}>Back to Home</a>
+          {' • '}
+          <a href={process.env.NODE_ENV === 'production' ? '/trak/terms-of-service.html' : '/terms-of-service.html'}>Terms of Service</a>
+        </p>
+      </footer>
     </div>
   );
 };

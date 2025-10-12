@@ -45,6 +45,7 @@ const Footer = () => {
           <h4>Legal</h4>
           <ul>
             <li><a href={process.env.NODE_ENV === 'production' ? '/trak/privacy-policy.html' : '/privacy-policy.html'}>Privacy Policy</a></li>
+            <li><a href={process.env.NODE_ENV === 'production' ? '/trak/terms-of-service.html' : '/terms-of-service.html'}>Terms of Service</a></li>
           </ul>
         </div>
       </div>
