@@ -227,18 +227,22 @@ const App: React.FC = () => {
     // Don't allow swiping active timers
     if (activeTimers[timerName]) return;
 
+    // If clicking on a different item, reset the swiped state
+    if (swipedTimer && swipedTimer !== timerName) {
+      setSwipedTimer(null);
+      setSwipeOffset(0);
+    }
+
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
     swipeStartX.current = clientX;
     swipeStartY.current = clientY;
     isSwiping.current = false;
-    setSwipedTimer(timerName);
+    // Don't set swipedTimer yet - wait for actual movement
   };
 
-  const handleSwipeMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!swipedTimer) return;
-
+  const handleSwipeMove = (e: React.MouseEvent | React.TouchEvent, timerName: string) => {
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     
@@ -248,9 +252,10 @@ const App: React.FC = () => {
     // Only start swiping if horizontal movement is dominant
     if (!isSwiping.current && Math.abs(deltaX) > 10 && deltaY < 30) {
       isSwiping.current = true;
+      setSwipedTimer(timerName); // Set the swiped timer only when actually swiping
     }
 
-    if (isSwiping.current && deltaX > 0) {
+    if (isSwiping.current && swipedTimer === timerName && deltaX > 0) {
       // Limit swipe to 80px (delete button width)
       setSwipeOffset(Math.min(deltaX, 80));
     }
@@ -388,8 +393,8 @@ const App: React.FC = () => {
                 className={`task-item-wrapper ${isSwiped ? 'swiped' : ''}`}
                 onMouseDown={(e) => handleSwipeStart(e, timer.name)}
                 onTouchStart={(e) => handleSwipeStart(e, timer.name)}
-                onMouseMove={handleSwipeMove}
-                onTouchMove={handleSwipeMove}
+                onMouseMove={(e) => handleSwipeMove(e, timer.name)}
+                onTouchMove={(e) => handleSwipeMove(e, timer.name)}
                 onMouseUp={handleSwipeEnd}
                 onTouchEnd={handleSwipeEnd}
                 onMouseLeave={handleSwipeEnd}
