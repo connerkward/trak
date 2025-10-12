@@ -3,6 +3,32 @@ import { createRoot } from 'react-dom/client';
 import type { Timer, Calendar } from '../../shared/types';
 import './App.css';
 
+const LiveTimer: React.FC<{ startTime: Date }> = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    const updateElapsed = () => {
+      const now = new Date();
+      const diff = now.getTime() - startTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (hours > 0) {
+        setElapsed(`${hours}h ${minutes}m`);
+      } else {
+        setElapsed(`${minutes}m`);
+      }
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  return <div className="task-duration">{elapsed}</div>;
+};
+
 const App: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -282,9 +308,7 @@ const App: React.FC = () => {
                   <div className="task-name">{timer.name}</div>
                   <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
                   {isActive && startTime && (
-                    <div className="task-duration">
-                      Started: {startTime.toLocaleTimeString()}
-                    </div>
+                    <LiveTimer startTime={startTime} />
                   )}
                 </div>
                 <button

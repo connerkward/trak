@@ -8,6 +8,32 @@ vi.mock('./App.css', () => ({}));
 // Import just the component part, not the auto-initializing module
 import type { Timer, Calendar } from '../../shared/types';
 
+const LiveTimer: React.FC<{ startTime: Date }> = ({ startTime }) => {
+  const [elapsed, setElapsed] = React.useState('');
+
+  React.useEffect(() => {
+    const updateElapsed = () => {
+      const now = new Date();
+      const diff = now.getTime() - startTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (hours > 0) {
+        setElapsed(`${hours}h ${minutes}m`);
+      } else {
+        setElapsed(`${minutes}m`);
+      }
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  return <div className="task-duration">{elapsed}</div>;
+};
+
 // Create a test version of the App component
 const App: React.FC = () => {
   const [timers, setTimers] = React.useState<Timer[]>([]);
@@ -115,9 +141,7 @@ const App: React.FC = () => {
                   <div className="task-name">{timer.name}</div>
                   <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
                   {isActive && startTime && (
-                    <div className="task-duration">
-                      Started: {startTime.toLocaleTimeString()}
-                    </div>
+                    <LiveTimer startTime={startTime} />
                   )}
                 </div>
                 <button

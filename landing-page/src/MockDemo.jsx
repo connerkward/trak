@@ -1,6 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import '../../src/renderer/main/App.css';
 
+const LiveTimer = ({ startTime }) => {
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    const updateElapsed = () => {
+      const now = new Date();
+      const diff = now.getTime() - startTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (hours > 0) {
+        setElapsed(`${hours}h ${minutes}m`);
+      } else {
+        setElapsed(`${minutes}m`);
+      }
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  return <div className="task-duration">{elapsed}</div>;
+};
+
 const MockDemo = () => {
   const [timers, setTimers] = useState([
     { name: 'Design Review', calendarId: 'work', isActive: false },
@@ -19,8 +45,8 @@ const MockDemo = () => {
   const handleStartStop = (timer) => {
     setTimers(prev => prev.map(t => 
       t.name === timer.name 
-        ? { ...t, isActive: !t.isActive }
-        : { ...t, isActive: false }
+        ? { ...t, isActive: !t.isActive, startTime: !t.isActive ? new Date() : null }
+        : { ...t, isActive: false, startTime: null }
     ));
   };
 
@@ -68,7 +94,7 @@ const MockDemo = () => {
           ) : (
             timers.map((timer) => {
               const isActive = timer.isActive;
-              const startTime = isActive ? new Date() : null;
+              const startTime = timer.startTime;
               
               return (
                 <div key={timer.name} className="task-item">
@@ -76,9 +102,7 @@ const MockDemo = () => {
                     <div className="task-name">{timer.name}</div>
                     <div className="task-calendar">{getCalendarName(timer.calendarId)}</div>
                     {isActive && startTime && (
-                      <div className="task-duration">
-                        Started: {startTime.toLocaleTimeString()}
-                      </div>
+                      <LiveTimer startTime={startTime} />
                     )}
                   </div>
                   <button
