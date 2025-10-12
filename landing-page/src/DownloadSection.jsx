@@ -1,42 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { downloadDMG } from './utils/downloadUtils';
 
-const DownloadSection = () => {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+const DownloadSection = ({ isDownloading, downloadProgress, onDownload }) => {
   const [buildInfo, setBuildInfo] = useState({ version: '1.0.1', buildTime: null });
-
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    setDownloadProgress(0);
-    
-    try {
-      await downloadDMG();
-      
-      // Simulate progress for better UX
-      const interval = setInterval(() => {
-        setDownloadProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setIsDownloading(false);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 200);
-      
-      setTimeout(() => {
-        clearInterval(interval);
-        setIsDownloading(false);
-        setDownloadProgress(100);
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Download failed:', error);
-      setIsDownloading(false);
-      alert(error.message || 'Download failed. Please try again.');
-    }
-  };
 
   useEffect(() => {
     // Fetch build metadata
@@ -89,7 +55,7 @@ const DownloadSection = () => {
           <div className="download-actions">
             <button 
               className={`download-button ${isDownloading ? 'downloading' : ''}`}
-              onClick={handleDownload}
+              onClick={onDownload}
               disabled={isDownloading}
             >
               {isDownloading ? (

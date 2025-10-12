@@ -83,6 +83,12 @@ const App: React.FC = () => {
       localStorage.removeItem('lastUsedCalendar');
       // Don't call loadData() after logout - it will just fail
     };
+
+    // Reset swipe state when window loses focus
+    const handleWindowBlur = () => {
+      setSwipedTimer(null);
+      setSwipeOffset(0);
+    };
     
     if (window.api && window.api.onDataChanged) {
       window.api.onDataChanged(handleDataChanged);
@@ -95,12 +101,15 @@ const App: React.FC = () => {
     if (window.api && window.api.onLogoutSuccess) {
       window.api.onLogoutSuccess(handleLogoutSuccess);
     }
+
+    window.addEventListener('blur', handleWindowBlur);
     
     // Cleanup listeners on unmount
     return () => {
       if (window.api && window.api.removeDataChangedListener) {
         window.api.removeDataChangedListener(handleDataChanged);
       }
+      window.removeEventListener('blur', handleWindowBlur);
     };
   }, []);
 
@@ -249,10 +258,14 @@ const App: React.FC = () => {
 
   const handleSwipeEnd = () => {
     if (swipeOffset > 40) {
-      // Keep swiped open
+      // Keep swiped open, but auto-close after 3 seconds
       setSwipeOffset(80);
+      setTimeout(() => {
+        setSwipedTimer(null);
+        setSwipeOffset(0);
+      }, 3000);
     } else {
-      // Reset
+      // Reset immediately
       setSwipedTimer(null);
       setSwipeOffset(0);
     }

@@ -12,6 +12,20 @@ const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleFeaturesClick = (e) => {
+    e.preventDefault();
+    document.querySelector('.features')?.scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
+  const handleDownloadNavClick = (e) => {
+    e.preventDefault();
+    document.getElementById('download-section')?.scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  };
+
   return (
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
@@ -21,8 +35,8 @@ const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => 
         </div>
         
         <nav className="nav">
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#download" className="nav-link">Download</a>
+          <a href="#features" className="nav-link" onClick={handleFeaturesClick}>Features</a>
+          <a href="#download" className="nav-link" onClick={handleDownloadNavClick}>Download</a>
         </nav>
 
         <button 

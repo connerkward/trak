@@ -107,7 +107,6 @@ const LandingPage = () => {
         isScrolled={isScrolled} 
         isDownloading={isDownloading}
         downloadProgress={downloadProgress}
-        onDownload={handleHeroDownload}
       />
       
       <main>
@@ -165,7 +164,11 @@ const LandingPage = () => {
         <Features />
 
         {/* Download Section */}
-        <DownloadSection />
+        <DownloadSection 
+          isDownloading={isDownloading}
+          downloadProgress={downloadProgress}
+          onDownload={handleHeroDownload}
+        />
       </main>
 
       <Footer />
