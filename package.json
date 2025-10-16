@@ -1,6 +1,6 @@
 {
   "name": "@every-time/dingo-track",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Time tracking application",
   "main": "./out/main/index.js",
   "private": true,
@@ -84,6 +84,14 @@
     "mas": {
       "type": "distribution",
       "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "mas",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
       "entitlements": "resources/entitlements.mas.plist",
       "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
       "hardenedRuntime": false,
