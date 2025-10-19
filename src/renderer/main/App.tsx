@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { Timer, Calendar } from '../../shared/types';
 import './App.css';
 
+// Live timer component that updates every second
 const LiveTimer: React.FC<{ startTime: Date }> = ({ startTime }) => {
   const [elapsed, setElapsed] = useState('');
 
