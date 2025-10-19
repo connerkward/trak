@@ -71,7 +71,7 @@ jobs:
           DIST_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           DIST_GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
-          pnpm build:electron
+          pnpm build
           npx electron-builder --mac dmg --universal
 
       - name: List build artifacts
