@@ -85,11 +85,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dingo-track-dmg
-          path: |
-            dist-electron/*.dmg
-            !dist-electron/*.blockmap
+          path: dist-electron/*.dmg
           retention-days: 30
-        continue-on-error: true
 
   build-and-deploy-landing:
     runs-on: ubuntu-latest
