@@ -194,8 +194,33 @@ export class TimerService {
       throw new Error('Timer is not active');
     }
 
-    const endTime = new Date();
-    const duration = Math.round((endTime.getTime() - activeTimer.startTime.getTime()) / 1000 / 60); // duration in minutes
+    let endTime = new Date();
+    const durationMs = endTime.getTime() - activeTimer.startTime.getTime();
+    let duration = Math.round(durationMs / 1000 / 60); // duration in minutes
+    
+    // Google Calendar API requires events to align with minute boundaries
+    // Round start time down to the nearest minute
+    const alignedStartTime = new Date(activeTimer.startTime);
+    alignedStartTime.setSeconds(0, 0);
+    
+    // Round end time up to the next minute boundary
+    const alignedEndTime = new Date(endTime);
+    if (alignedEndTime.getSeconds() > 0 || alignedEndTime.getMilliseconds() > 0) {
+      alignedEndTime.setMinutes(alignedEndTime.getMinutes() + 1);
+    }
+    alignedEndTime.setSeconds(0, 0);
+    
+    // Ensure minimum 1 minute duration
+    const alignedDurationMs = alignedEndTime.getTime() - alignedStartTime.getTime();
+    if (alignedDurationMs < 60000) {
+      alignedEndTime.setTime(alignedStartTime.getTime() + 60000);
+      console.log('⏱️  Timer duration was less than 1 minute, extending to 1 minute for Google Calendar API');
+    }
+    
+    // Use aligned times for calendar event
+    endTime = alignedEndTime;
+    const startTime = alignedStartTime;
+    duration = Math.max(1, duration);
     
     // Remove from active timers
     this.activeTimers.delete(name);
@@ -205,12 +230,13 @@ export class TimerService {
     const timers = this.getAllTimers();
     const timer = timers.find(t => t.name === name);
     
-    if (timer && duration > 0) {
+    // Create calendar event if timer exists (even for short durations since we extend to 1 min)
+    if (timer && durationMs > 0) {
       // Create calendar event
       try {
         await this.googleCalendarService.createEvent(timer.calendarId, {
           summary: timer.name,
-          start: activeTimer.startTime,
+          start: startTime,
           end: endTime
         });
         
@@ -218,7 +244,7 @@ export class TimerService {
         this.saveTimerSession({
           name: timer.name,
           calendarId: timer.calendarId,
-          startTime: activeTimer.startTime,
+          startTime: startTime,
           endTime,
           duration
         });
@@ -228,7 +254,7 @@ export class TimerService {
         this.saveTimerSession({
           name: timer.name,
           calendarId: timer.calendarId,
-          startTime: activeTimer.startTime,
+          startTime: startTime,
           endTime,
           duration
         });

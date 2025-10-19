@@ -6,6 +6,12 @@ exports.default = async function notarizing(context) {
     return;
   }
 
+  // Skip notarization if SKIP_NOTARIZE is set (for dev builds)
+  if (process.env.SKIP_NOTARIZE === 'true') {
+    console.log('⏭️  Skipping notarization: SKIP_NOTARIZE is set');
+    return;
+  }
+
   // Skip notarization for temporary universal build dirs
   if (appOutDir.includes('-temp')) {
     console.log('⏭️  Skipping notarization for temporary build:', appOutDir);

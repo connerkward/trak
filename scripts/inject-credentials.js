@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 console.log('🔧 Injecting Google OAuth credentials into build...');
 

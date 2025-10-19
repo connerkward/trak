@@ -219,7 +219,10 @@ export class GoogleCalendarServiceSimple {
 
   // Create event
   async createEvent(calendarId: string, event: Omit<CalendarEvent, 'calendarId'>): Promise<CalendarEvent> {
+    console.log('📅 Creating calendar event:', { calendarId, summary: event.summary, start: event.start, end: event.end });
+    
     const token = await this.getValidToken();
+    console.log('🔑 Got valid token for event creation');
     
     const eventData = {
       summary: event.summary,
@@ -244,7 +247,9 @@ export class GoogleCalendarServiceSimple {
       }
     };
 
+    console.log('🌐 Making API request to create event');
     const response = await this.makeRequest(options, JSON.stringify(eventData));
+    console.log('✅ Event created successfully:', response.summary);
     
     return {
       summary: response.summary,
