@@ -56,16 +56,16 @@ jobs:
         echo "DIST_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
         echo "DIST_GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
     
-    - name: Build app
+    - name: Build macOS app
       run: pnpm dist:mac
       if: matrix.os == 'macos-latest'
     
-    - name: Build app
-      run: pnpm dist:win
+    - name: Build Windows app
+      run: pnpm build && npx electron-builder --win
       if: matrix.os == 'windows-latest'
     
-    - name: Build app
-      run: pnpm dist:linux
+    - name: Build Linux app
+      run: pnpm build && npx electron-builder --linux
       if: matrix.os == 'ubuntu-latest'
     
     - name: Upload artifacts
