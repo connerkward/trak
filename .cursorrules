@@ -1,0 +1,31 @@
+# Dingo Track - Cursor Rules
+
+## Testing
+
+When making changes to OAuth or Google Calendar integration code:
+- ALWAYS run `pnpm test:calendar` after making changes
+- Use `pnpm test:calendar:watch` for iterative development
+- Tests hit the real Google Calendar API
+- Tests require `.env.test` file (created by `node scripts/get-test-refresh-token.js`)
+
+## Build Commands
+
+- Dev: `pnpm dev` (DO NOT run `npm run build`)
+- DMG: `pnpm dist:mac`
+- MAS: `pnpm build && npx electron-builder --mac mas --universal`
+- Test Calendar: `pnpm test:calendar`
+
+## Code Changes
+
+When modifying:
+- `src/main/services/GoogleCalendarService.ts` → Run `pnpm test:calendar`
+- `src/main/services/timerService.ts` → Run `pnpm test:calendar`
+- OAuth flow → Run `pnpm test:calendar`
+
+## Do Not
+
+- Do not run `npm run build` (user considers it worthless)
+- Do not git push (user does it manually)
+- Do not modify dist folders
+- Do not provide advice, just execute
+

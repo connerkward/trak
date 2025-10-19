@@ -123,3 +123,4 @@ dist-bundle/
 docs/
 
 dist-electron-
+.env.test
