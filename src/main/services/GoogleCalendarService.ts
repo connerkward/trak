@@ -328,12 +328,15 @@ export class GoogleCalendarServiceSimple {
               
               // Get the actual user ID (hash of calendar data, no personal info)
               const userId = await this.getUserId();
-              this.currentUserId = userId;
-              console.log('📝 Tokens stored, setting current user to:', this.currentUserId);
+              this.setCurrentUser(userId);
+              console.log('📝 Tokens stored, setting current user to:', userId);
+              
+              // IMPORTANT: Wait a tick to ensure user ID is fully set before callback
+              await new Promise(resolve => setImmediate(resolve));
               
               // Notify all windows of auth success
               if (this.authSuccessCallback) {
-                console.log('📝 Calling auth success callback');
+                console.log('📝 Calling auth success callback with userId:', userId);
                 this.authSuccessCallback();
               } else {
                 console.log('📝 No auth success callback set!');

@@ -256,7 +256,7 @@ export class TimerService {
         // Show error dialog to user
         dialog.showErrorBox(
           'Calendar Event Failed',
-          `Failed to create calendar event for "${timer.name}".\n\nError: ${errorMessage}\n\nThe timer was tracked locally but not synced to Google Calendar.`
+          `Failed to create calendar event for "${timer.name}".\n\nError: ${errorMessage}`
         );
         
         // Still save the session even if calendar creation fails
