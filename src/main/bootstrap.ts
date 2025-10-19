@@ -33,8 +33,16 @@ export function bootstrapServices(): void {
     () => {
       const service = new GoogleCalendarServiceSimple();
       
-      // Set up auth success callback
+      // Set up auth success callback to propagate user ID to timer service
       service.setAuthSuccessCallback(() => {
+        console.log('🔔 Auth success callback fired in bootstrap');
+        const userId = service.getCurrentUserId();
+        if (userId) {
+          console.log('🔔 Propagating userId to TimerService:', userId);
+          const timerService = serviceContainer.get<TimerService>(SERVICE_TOKENS.TimerService);
+          timerService.setCurrentUser(userId);
+        }
+        
         const eventEmitter = serviceContainer.get<EventEmitter>(SERVICE_TOKENS.EventEmitter);
         eventEmitter.emit('oauth-success');
       });
@@ -43,11 +51,12 @@ export function bootstrapServices(): void {
     }
   );
 
-  // Register timer service
+  // Register timer service with injected GoogleCalendarService
   serviceContainer.registerSingleton(
     SERVICE_TOKENS.TimerService,
     () => {
-      const service = new TimerService();
+      const googleCalendarService = serviceContainer.get<GoogleCalendarServiceSimple>(SERVICE_TOKENS.GoogleCalendarService);
+      const service = new TimerService(googleCalendarService);
       service.initialize();
       return service;
     }

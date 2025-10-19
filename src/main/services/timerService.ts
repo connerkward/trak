@@ -10,9 +10,9 @@ export class TimerService {
   private autoSaveInterval: NodeJS.Timeout | null = null;
   private currentUserId: string | null = null;
 
-  constructor() {
+  constructor(googleCalendarService: GoogleCalendarServiceSimple) {
     this.store = new SimpleStore({ name: 'dingo-track-timers' });
-    this.googleCalendarService = new GoogleCalendarServiceSimple();
+    this.googleCalendarService = googleCalendarService;
   }
 
   setCurrentUser(userId: string | null): void {

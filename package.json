@@ -1,6 +1,6 @@
 {
   "name": "@every-time/dingo-track",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Time tracking application",
   "main": "./out/main/index.js",
   "private": true,
