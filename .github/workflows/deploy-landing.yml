@@ -6,11 +6,11 @@ on:
     paths:
       - 'landing-page/**'
       - 'src/**'
-      - 'desktop/**'
       - 'assets/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'scripts/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
