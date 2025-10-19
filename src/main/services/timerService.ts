@@ -1,3 +1,4 @@
+import { dialog } from 'electron';
 import { GoogleCalendarServiceSimple } from './GoogleCalendarService';
 import { SimpleStore } from './StorageService';
 import type { Timer, ActiveTimer, TimerSession } from '../../shared/types';
@@ -250,6 +251,14 @@ export class TimerService {
         });
       } catch (error) {
         console.error('Error creating calendar event:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // Show error dialog to user
+        dialog.showErrorBox(
+          'Calendar Event Failed',
+          `Failed to create calendar event for "${timer.name}".\n\nError: ${errorMessage}\n\nThe timer was tracked locally but not synced to Google Calendar.`
+        );
+        
         // Still save the session even if calendar creation fails
         this.saveTimerSession({
           name: timer.name,
