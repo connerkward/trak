@@ -17,6 +17,7 @@
     "test:calendar:watch": "export $(cat .env.test 2>/dev/null | xargs) && vitest tests/integration/google-calendar.test.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.1",
     "dotenv": "^16.3.1",
     "zustand": "^5.0.7"
   },
@@ -55,6 +56,12 @@
     ],
     "asar": true,
     "icon": "assets/app-icon.icns",
+    "protocols": [
+      {
+        "name": "Trak OAuth",
+        "schemes": ["trak"]
+      }
+    ],
     "mac": {
       "icon": "assets/app-icon.icns",
       "category": "public.app-category.productivity",

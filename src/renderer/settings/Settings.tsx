@@ -402,6 +402,27 @@ const Settings: React.FC = () => {
         </>
       )}
 
+      <div className="section mcp-section">
+        <h2>Claude Desktop Integration</h2>
+        <p className="help-text">
+          Connect Dingo Track to Claude Desktop using the Model Context Protocol (MCP).
+          This allows Claude to view and manage your timers directly.
+        </p>
+        <button
+          className="btn btn-claude"
+          onClick={async () => {
+            try {
+              await window.api.generateMCPConfig();
+              alert('✅ MCP configuration file saved! Check your Downloads folder for "dingo-track-mcp.json".\n\nTo connect:\n1. Open Claude Desktop\n2. Go to Settings → Developer → MCP Servers\n3. Add the configuration file');
+            } catch (error) {
+              console.error('Failed to generate MCP config:', error);
+              alert('❌ Failed to generate MCP configuration');
+            }
+          }}
+        >
+          🔗 Connect to Claude Desktop
+        </button>
+      </div>
 
     </div>
   );

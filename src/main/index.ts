@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
+import * as archiver from 'archiver';
 import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
 import { TimerService } from './services/timerService';
 import { SimpleStore } from './services/StorageService';
@@ -614,6 +615,74 @@ ipcMain.handle('open-dxt-file', async () => {
   }
 });
 
+// Generate MCPB bundle for Claude Desktop
+ipcMain.handle('generate-mcp-config', async () => {
+  try {
+    const AdmZip = require('adm-zip');
+
+    // Determine the correct path to the MCP server based on environment
+    const mcpServerPath = isDev
+      ? path.join(__dirname, '..', '..', 'out', 'main', 'mcp-server.js')
+      : path.join(process.resourcesPath, 'app.asar', 'out', 'main', 'mcp-server.js');
+
+    // Create MCPB manifest according to spec
+    const manifest = {
+      manifest_version: "0.2",
+      name: "dingo-track",
+      version: "1.0.0",
+      display_name: "Dingo Track",
+      description: "Time tracking with Google Calendar integration. Control your timers and track time directly from Claude.",
+      author: {
+        name: "Every Time",
+        url: "https://github.com/yourusername/trak"
+      },
+      server: {
+        command: "node",
+        args: ["${__dirname}/server/mcp-server.js"],
+        env: {}
+      },
+      tools: [
+        { name: "list_timers", description: "List all configured timers" },
+        { name: "add_timer", description: "Add a new timer with calendar association" },
+        { name: "delete_timer", description: "Delete a timer by name" },
+        { name: "get_active_timers", description: "Get currently running timers" },
+        { name: "list_calendars", description: "List Google Calendars" },
+        { name: "get_timer_status", description: "Get timer status and duration" }
+      ],
+      compatibility: {
+        runtime: {
+          node: ">=16.0.0"
+        }
+      }
+    };
+
+    // Create zip file
+    const zip = new AdmZip();
+
+    // Add manifest.json to root
+    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'));
+
+    // Add the MCP server to server/ directory
+    const serverCode = fs.readFileSync(mcpServerPath);
+    zip.addFile('server/mcp-server.js', serverCode);
+
+    // Get the downloads folder
+    const downloadsPath = app.getPath('downloads');
+    const mcpbPath = path.join(downloadsPath, 'dingo-track.mcpb');
+
+    // Write the MCPB file
+    zip.writeZip(mcpbPath);
+
+    // Show in finder/explorer
+    shell.showItemInFolder(mcpbPath);
+
+    return { success: true, path: mcpbPath };
+  } catch (error) {
+    console.error('Failed to generate MCPB:', error);
+    throw error;
+  }
+});
+
 // Data change notifications
 ipcMain.on('notify-data-changed', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -643,6 +712,9 @@ app.whenReady().then(() => {
     
     // Completely remove menu on all platforms
     Menu.setApplicationMenu(null);
+    
+    // Register custom URL scheme for OAuth callback
+    app.setAsDefaultProtocolClient('trak');
     
     createTray();
   } catch (error) {
@@ -700,4 +772,41 @@ app.on('web-contents-created', (event, contents) => {
       event.preventDefault();
     }
   });
+});
+
+// Handle custom URL scheme for OAuth callback
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  
+  console.log('🔗 Received custom URL:', url);
+  
+  // Parse the URL to extract the auth code
+  const urlObj = new URL(url);
+  
+  if (urlObj.protocol === 'trak:' && urlObj.pathname === '/oauth/callback') {
+    const authCode = urlObj.searchParams.get('code');
+    const error = urlObj.searchParams.get('error');
+    
+    if (authCode) {
+      console.log('✅ OAuth callback received with code');
+      // Handle the auth code through the existing IPC handler
+      ipcMain.emit('set-auth-code', null, authCode);
+    } else if (error) {
+      console.error('❌ OAuth callback received with error:', error);
+      // Notify all windows of OAuth error
+      BrowserWindow.getAllWindows().forEach(window => {
+        window.webContents.send('oauth-error', error);
+      });
+    }
+  }
+});
+
+// Handle custom URL scheme when app is already running (macOS)
+app.on('second-instance', (event, argv) => {
+  // Look for custom URL in command line arguments
+  const urlArg = argv.find(arg => arg.startsWith('trak://'));
+  if (urlArg) {
+    console.log('🔗 Received custom URL from second instance:', urlArg);
+    app.emit('open-url', { preventDefault: () => {} }, urlArg);
+  }
 });

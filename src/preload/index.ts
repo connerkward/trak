@@ -21,6 +21,7 @@ export interface ElectronAPI {
   openSettings: () => Promise<void>;
   quitApp: () => Promise<void>;
   openDxtFile: () => Promise<void>;
+  generateMCPConfig: () => Promise<{ success: boolean; path: string }>;
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => void;
@@ -51,6 +52,7 @@ const electronAPI: ElectronAPI = {
   openSettings: () => ipcRenderer.invoke('open-settings'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   openDxtFile: () => ipcRenderer.invoke('open-dxt-file'),
+  generateMCPConfig: () => ipcRenderer.invoke('generate-mcp-config'),
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => {

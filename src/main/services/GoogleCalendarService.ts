@@ -45,9 +45,10 @@ export class GoogleCalendarServiceSimple {
   }
 
   // Get authorization URL
-  getAuthUrl(): string {
+  getAuthUrl(port: number = 8080): string {
     const scopes = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
-    const redirectUri = 'http://localhost:3000/callback';
+    // Use trak:// URL scheme for OAuth
+    const redirectUri = 'trak://oauth/callback';
     
     const params = new URLSearchParams({
       client_id: this.clientId,
@@ -62,13 +63,13 @@ export class GoogleCalendarServiceSimple {
   }
 
   // Exchange code for tokens
-  async exchangeCodeForTokens(code: string): Promise<AuthTokens> {
+  async exchangeCodeForTokens(code: string, port: number = 8080): Promise<AuthTokens> {
     const tokenData = new URLSearchParams({
       client_id: this.clientId,
       client_secret: this.clientSecret,
       code: code,
       grant_type: 'authorization_code',
-      redirect_uri: 'http://localhost:3000/callback'
+      redirect_uri: 'trak://oauth/callback'
     });
 
     const options: https.RequestOptions = {
@@ -295,96 +296,12 @@ export class GoogleCalendarServiceSimple {
     this.authSuccessCallback = callback;
   }
 
-  // Start local server to handle OAuth callback
-  private startLocalServer(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const server = http.createServer(async (req, res) => {
-        const parsedUrl = url.parse(req.url!, true);
-        
-        if (parsedUrl.pathname === '/callback') {
-          const authCode = parsedUrl.query.code as string;
-          
-          if (authCode) {
-            // Success page
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(`
-              <html>
-                <head><title>Dingo Track - Authentication Success</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-                  <h1>Authentication Successful!</h1>
-                  <p>You can now close this window and return to Dingo Track.</p>
-                  <script>setTimeout(() => window.close(), 2000);</script>
-                </body>
-              </html>
-            `);
-            
-            server.close();
-            
-            try {
-              // Exchange the auth code for tokens
-              console.log('📝 Exchanging auth code for tokens...');
-              const tokens = await this.exchangeCodeForTokens(authCode);
-              this.storeTokens(tokens);
-              
-              // Get the actual user ID (hash of calendar data, no personal info)
-              const userId = await this.getUserId();
-              this.setCurrentUser(userId);
-              console.log('📝 Tokens stored, setting current user to:', userId);
-              
-              // IMPORTANT: Wait a tick to ensure user ID is fully set before callback
-              await new Promise(resolve => setImmediate(resolve));
-              
-              // Notify all windows of auth success
-              if (this.authSuccessCallback) {
-                console.log('📝 Calling auth success callback with userId:', userId);
-                this.authSuccessCallback();
-              } else {
-                console.log('📝 No auth success callback set!');
-              }
-              
-              resolve('success');
-            } catch (error) {
-              reject(error);
-            }
-          } else if (parsedUrl.query.error) {
-            // Error page
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end(`
-              <html>
-                <head><title>Dingo Track - Authentication Error</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-                  <h1>❌ Authentication Failed</h1>
-                  <p>Error: ${parsedUrl.query.error}</p>
-                  <p>You can close this window and try again.</p>
-                </body>
-              </html>
-            `);
-            
-            server.close();
-            reject(new Error(`OAuth error: ${parsedUrl.query.error}`));
-          }
-        }
-      });
-      
-      server.listen(3000, () => {
-        console.log('OAuth callback server listening on http://localhost:3000');
-      });
-      
-      server.on('error', (error) => {
-        reject(error);
-      });
-    });
-  }
-
-  // Authenticate - starts OAuth flow with automatic redirect handling
+  // Authenticate - starts OAuth flow with custom URL scheme
   async authenticate(): Promise<{ authUrl: string }> {
-    // Start the local callback server
-    const serverPromise = this.startLocalServer();
-    
-    // Generate auth URL
+    // Generate auth URL - custom URL scheme will handle the callback
     const authUrl = this.getAuthUrl();
     
-    // Return the auth URL, server will handle the callback
+    // Return the auth URL, custom URL scheme will handle the callback
     return { authUrl };
   }
 
@@ -392,6 +309,7 @@ export class GoogleCalendarServiceSimple {
   async setAuthCode(code: string): Promise<AuthTokens> {
     console.log('📝 setAuthCode called with code');
     const tokens = await this.exchangeCodeForTokens(code);
+    this.storeTokens(tokens);
     
     // Get the actual user ID (hash of calendar data, no personal info)
     const userId = await this.getUserId();
