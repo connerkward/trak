@@ -638,63 +638,120 @@ async function handleUrlSchemeCallback(url: string): Promise<void> {
   console.log('📱 Received URL scheme callback:', url);
   
   try {
-    // Parse trak://callback?code=... or trak://callback?error=...
-    const urlMatch = url.match(/^trak:\/\/(callback)\?(.+)$/);
-    if (!urlMatch) {
+    // Parse trak://callback?code=... or trak://callback/?code=... or trak://callback?error=...
+    // Handle various URL formats that Google might use
+    let parsedUrl: URL;
+    try {
+      // Try parsing as-is first
+      parsedUrl = new URL(url);
+    } catch {
+      // If that fails, try normalizing the URL
+      const normalized = url.replace(/^trak:\/\/(callback)/, 'trak://callback');
+      parsedUrl = new URL(normalized);
+    }
+    
+    // Check if this is our callback URL
+    if (parsedUrl.protocol !== 'trak:') {
+      console.log('Ignoring non-trak URL scheme:', url);
+      return;
+    }
+    
+    // Handle both /callback and callback (with or without slash)
+    const pathname = parsedUrl.pathname || parsedUrl.hostname || '';
+    if (!pathname.includes('callback')) {
       console.log('Ignoring non-callback URL scheme:', url);
       return;
     }
     
-    const queryString = urlMatch[2];
-    const params = new URLSearchParams(queryString);
-    const authCode = params.get('code');
-    const error = params.get('error');
+    const authCode = parsedUrl.searchParams.get('code');
+    const error = parsedUrl.searchParams.get('error');
     
     if (authCode) {
       console.log('✅ OAuth callback received with code');
       // Wait for services to be initialized if needed
-      if (!googleCalendarService) {
+      let retries = 10;
+      while (!googleCalendarService && retries > 0) {
         console.log('⏳ Waiting for services to initialize...');
         await new Promise(resolve => setTimeout(resolve, 500));
+        retries--;
       }
       
       if (googleCalendarService) {
         // Exchange code for tokens
         await googleCalendarService.setAuthCode(authCode);
       } else {
-        console.error('❌ GoogleCalendarService not initialized yet');
+        console.error('❌ GoogleCalendarService not initialized after waiting');
         dialog.showErrorBox(
           'Authentication Error',
-          'Application is still initializing. Please try again in a moment.'
+          'Application is still initializing. Please try authenticating again in a moment.'
         );
       }
     } else if (error) {
       console.error('❌ OAuth error:', error);
+      const errorDescription = parsedUrl.searchParams.get('error_description') || error;
       dialog.showErrorBox(
         'Authentication Error',
-        `OAuth authentication failed: ${error}`
+        `OAuth authentication failed: ${errorDescription}`
       );
+    } else {
+      console.log('⚠️ Callback URL received but no code or error parameter');
     }
   } catch (error) {
     console.error('Error parsing URL scheme callback:', error);
-    dialog.showErrorBox(
-      'Authentication Error',
-      `Failed to process authentication callback: ${error instanceof Error ? error.message : String(error)}`
-    );
+    // Try fallback parsing with regex
+    const match = url.match(/trak:\/\/[^?]+\?(.+)$/);
+    if (match) {
+      const params = new URLSearchParams(match[1]);
+      const authCode = params.get('code');
+      if (authCode) {
+        console.log('✅ OAuth callback received with code (fallback parsing)');
+        if (googleCalendarService) {
+          await googleCalendarService.setAuthCode(authCode);
+        } else {
+          console.error('❌ GoogleCalendarService not available');
+        }
+      }
+    } else {
+      dialog.showErrorBox(
+        'Authentication Error',
+        `Failed to process authentication callback: ${error instanceof Error ? error.message : String(error)}\n\nURL received: ${url}`
+      );
+    }
   }
 }
 
-// Register URL scheme handler
-if (!app.isDefaultProtocolClient('trak')) {
-  app.setAsDefaultProtocolClient('trak');
+// Register URL scheme handler (must be called before app.whenReady())
+// In development, protocol registration might fail, so we handle it gracefully
+try {
+  if (!app.isDefaultProtocolClient('trak')) {
+    const success = app.setAsDefaultProtocolClient('trak');
+    if (success) {
+      console.log('✅ Registered trak:// protocol handler');
+    } else {
+      console.log('⚠️ Failed to register trak:// protocol handler (may already be registered or require admin rights)');
+    }
+  } else {
+    console.log('✅ trak:// protocol handler already registered');
+  }
+} catch (error) {
+  console.warn('⚠️ Error registering protocol handler:', error);
+  // Continue anyway - the app might still work if protocol is registered system-wide
 }
 
 // Handle URL scheme on macOS (app already running)
+// This must be set up before app.whenReady() but will only fire after app is ready
+let pendingUrlScheme: string | null = null;
+
 app.on('open-url', (event, url) => {
   event.preventDefault();
-  handleUrlSchemeCallback(url).catch((error) => {
-    console.error('Error handling URL scheme callback:', error);
-  });
+  if (app.isReady()) {
+    handleUrlSchemeCallback(url).catch((error) => {
+      console.error('Error handling URL scheme callback:', error);
+    });
+  } else {
+    // Store for handling after app is ready
+    pendingUrlScheme = url;
+  }
 });
 
 // Handle URL scheme on Windows/Linux (app launched via URL)
@@ -702,15 +759,27 @@ if (process.platform !== 'darwin') {
   const args = process.argv.slice(1);
   const urlArg = args.find(arg => arg.startsWith('trak://'));
   if (urlArg) {
-    handleUrlSchemeCallback(urlArg).catch((error) => {
-      console.error('Error handling URL scheme callback:', error);
-    });
+    if (app.isReady()) {
+      handleUrlSchemeCallback(urlArg).catch((error) => {
+        console.error('Error handling URL scheme callback:', error);
+      });
+    } else {
+      pendingUrlScheme = urlArg;
+    }
   }
 }
 
 // App lifecycle
 app.whenReady().then(() => {
   try {
+    // Handle any pending URL scheme callbacks
+    if (pendingUrlScheme) {
+      handleUrlSchemeCallback(pendingUrlScheme).catch((error) => {
+        console.error('Error handling pending URL scheme callback:', error);
+      });
+      pendingUrlScheme = null;
+    }
+    
     // Handle URL scheme on Windows/Linux (when app is ready)
     if (process.platform !== 'darwin') {
       const args = process.argv.slice(1);
