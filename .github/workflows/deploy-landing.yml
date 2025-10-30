@@ -39,6 +39,9 @@ jobs:
         with:
           version: 8
 
+      - name: Setup Python for native modules
+        run: pip3 install setuptools
+
       - name: Install dependencies
         run: pnpm install
 
