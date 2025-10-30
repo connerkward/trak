@@ -16,7 +16,7 @@ const Settings: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
   const [openAtLogin, setOpenAtLogin] = useState<boolean>(false);
-  const [dockIconVisible, setDockIconVisible] = useState<boolean>(false);
+  const [dockIconVisible, setDockIconVisible] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'google' | 'add' | 'calendars' | 'timers' | 'claude' | 'general' | 'quit'>('google');
   const googleRef = useRef<HTMLDivElement | null>(null);
   const addRef = useRef<HTMLDivElement | null>(null);
@@ -76,7 +76,9 @@ const Settings: React.FC = () => {
     }
     // Load dock icon state (macOS)
     if (window.api && window.api.getDockIconVisible) {
-      window.api.getDockIconVisible().then(setDockIconVisible).catch(() => {});
+      window.api.getDockIconVisible()
+        .then((val) => setDockIconVisible(val))
+        .catch(() => setDockIconVisible(true));
     }
 
     // Listen for OAuth success events

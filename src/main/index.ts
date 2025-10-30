@@ -704,7 +704,10 @@ ipcMain.handle('set-dock-icon-visible', (event, visible: boolean) => {
       try {
         const icnsPath = path.join(__dirname, '../../assets/app-icon.icns');
         if (fs.existsSync(icnsPath)) {
-          app.dock.setIcon(icnsPath);
+          const iconImage = nativeImage.createFromPath(icnsPath);
+          if (!iconImage.isEmpty()) {
+            app.dock.setIcon(iconImage);
+          }
         }
       } catch {}
       app.dock.show();
@@ -854,7 +857,10 @@ app.whenReady().then(async () => {
       try {
         const icnsPath = path.join(__dirname, '../../assets/app-icon.icns');
         if (fs.existsSync(icnsPath)) {
-          app.dock.setIcon(icnsPath);
+          const iconImage = nativeImage.createFromPath(icnsPath);
+          if (!iconImage.isEmpty()) {
+            app.dock.setIcon(iconImage);
+          }
         }
         app.dock.show();
       } catch (e) {
