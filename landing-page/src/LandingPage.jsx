@@ -3,6 +3,7 @@ import { downloadDMG } from './utils/downloadUtils';
 import MockDemo from './MockDemo.jsx';
 import Features from './Features.jsx';
 import DownloadSection from './DownloadSection.jsx';
+import SuggestionForm from './SuggestionForm.jsx';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 
@@ -164,11 +165,14 @@ const LandingPage = () => {
         <Features />
 
         {/* Download Section */}
-        <DownloadSection 
+        <DownloadSection
           isDownloading={isDownloading}
           downloadProgress={downloadProgress}
           onDownload={handleHeroDownload}
         />
+
+        {/* Suggestion Form */}
+        <SuggestionForm />
       </main>
 
       <Footer />

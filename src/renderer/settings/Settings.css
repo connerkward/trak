@@ -38,6 +38,40 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 8px 0 12px 0;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tab {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  background: var(--button-bg);
+  color: var(--text-color);
+  font-size: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--blue-color);
+  color: #fff;
+  border-color: var(--blue-color);
+}
+
+/* Sections spacing for long-scroll layout */
+.section {
+  scroll-margin-top: 56px; /* accounts for sticky tabs height */
+}
+
 .header h1 {
   margin: 0;
   font-size: 16px;
@@ -143,6 +177,23 @@ body {
   border: 2px solid var(--border-color);
   border-radius: 12px;
   background: var(--list-bg);
+}
+
+/* Settings rows */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--list-bg);
+  margin-bottom: 10px;
+}
+
+.setting-label {
+  font-size: 13px;
+  color: var(--text-color);
 }
 
 .calendar-item {
@@ -283,6 +334,8 @@ body {
   --red-hover-color: #dc3545;
 
 }
+
+/* removed auth hero brand overrides (reverting to original styles) */
 
 /* Dark mode variables */
 @media (prefers-color-scheme: dark) {
@@ -445,5 +498,76 @@ body {
   
   .auth-buttons .btn {
     flex: none;
+  }
+}
+
+/* Claude Desktop Integration Section */
+.mcp-section {
+  padding: 16px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+  border: 2px solid #d97757;
+  border-radius: 12px;
+  margin-top: 24px;
+}
+
+.mcp-section h2 {
+  color: #ffffff !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px !important;
+}
+
+.mcp-section .help-text {
+  color: #cccccc !important;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.btn-claude {
+  width: 100%;
+  padding: 14px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: linear-gradient(135deg, #d97757 0%, #c96747 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(217, 119, 87, 0.3);
+  cursor: pointer;
+}
+
+.btn-claude:hover {
+  background: linear-gradient(135deg, #e08565 0%, #d07555 100%) !important;
+  box-shadow: 0 6px 16px rgba(217, 119, 87, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-claude:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(217, 119, 87, 0.3);
+}
+
+/* Dark mode adjustments for MCP section */
+@media (prefers-color-scheme: dark) {
+  .mcp-section {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border-color: #d97757;
+  }
+}
+
+/* Light mode adjustments for MCP section */
+@media (prefers-color-scheme: light) {
+  .mcp-section {
+    background: linear-gradient(135deg, #f8f4f1 0%, #f0e8e3 100%);
+    border-color: #d97757;
+  }
+
+  .mcp-section h2 {
+    color: #1a1a1a !important;
+  }
+
+  .mcp-section .help-text {
+    color: #4a4a4a !important;
   }
 }

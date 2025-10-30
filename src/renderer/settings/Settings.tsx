@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Timer, Calendar } from '../../shared/types';
 import './Settings.css';
@@ -15,6 +15,20 @@ const Settings: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({ name: '', calendarId: '' });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
+  const [openAtLogin, setOpenAtLogin] = useState<boolean>(false);
+  const [dockIconVisible, setDockIconVisible] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'google' | 'add' | 'calendars' | 'timers' | 'claude' | 'general' | 'quit'>('google');
+  const googleRef = useRef<HTMLDivElement | null>(null);
+  const addRef = useRef<HTMLDivElement | null>(null);
+  const calendarsRef = useRef<HTMLDivElement | null>(null);
+  const timersRef = useRef<HTMLDivElement | null>(null);
+  const claudeRef = useRef<HTMLDivElement | null>(null);
+  const generalRef = useRef<HTMLDivElement | null>(null);
+  const quitRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollTo = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const loadData = async () => {
     try {
@@ -55,6 +69,15 @@ const Settings: React.FC = () => {
     loadData();
     const savedHidden = JSON.parse(localStorage.getItem('hiddenCalendars') || '[]');
     setHiddenCalendars(savedHidden);
+
+    // Load open on startup
+    if (window.api && window.api.getOpenAtLogin) {
+      window.api.getOpenAtLogin().then(setOpenAtLogin).catch(() => {});
+    }
+    // Load dock icon state (macOS)
+    if (window.api && window.api.getDockIconVisible) {
+      window.api.getDockIconVisible().then(setDockIconVisible).catch(() => {});
+    }
 
     // Listen for OAuth success events
     const oauthUnsubscribe = window.api && window.api.onOAuthSuccess ? window.api.onOAuthSuccess(() => {
@@ -218,6 +241,32 @@ const Settings: React.FC = () => {
     }
   };
 
+  const handleToggleOpenAtLogin = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const enabled = e.target.checked;
+    setOpenAtLogin(enabled);
+    try {
+      if (window.api && window.api.setOpenAtLogin) {
+        const result = await window.api.setOpenAtLogin(enabled);
+        setOpenAtLogin(result);
+      }
+    } catch (error) {
+      console.error('Failed to update open at login:', error);
+    }
+  };
+
+  const handleToggleDockIcon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const visible = e.target.checked;
+    setDockIconVisible(visible);
+    try {
+      if (window.api && window.api.setDockIconVisible) {
+        const result = await window.api.setDockIconVisible(visible);
+        setDockIconVisible(result);
+      }
+    } catch (error) {
+      console.error('Failed to update dock icon visibility:', error);
+    }
+  };
+
 
 
 
@@ -229,9 +278,10 @@ const Settings: React.FC = () => {
       <div className="header">
         <h1>Dingo Track Settings</h1>
       </div>
+      {null}
 
       {!isAuthenticated && (
-        <div className="section">
+        <div ref={googleRef} className="section" id="google">
           <h2>Authentication</h2>
           <p className="help-text">
             Connect your Google Calendar to start tracking time.
@@ -289,7 +339,7 @@ const Settings: React.FC = () => {
 
       {isAuthenticated && (
         <>
-          <div className="section">
+          <div ref={googleRef} className="section" id="google">
             <h2>Google Calendar</h2>
             <p className="help-text">
               ✅ Connected to Google Calendar ({calendars.length} calendars available)
@@ -301,8 +351,7 @@ const Settings: React.FC = () => {
               🚪 Logout from Google Calendar
             </button>
           </div>
-
-          <div className="section">
+          <div ref={addRef} className="section" id="add">
             <h2>Add New Timer</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -342,7 +391,7 @@ const Settings: React.FC = () => {
             </form>
           </div>
 
-          <div className="section">
+          <div ref={calendarsRef} className="section" id="calendars">
             <h2>Calendars</h2>
             <div className="calendar-list">
               {calendars.length === 0 ? (
@@ -369,7 +418,7 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
-          <div className="section">
+          <div ref={timersRef} className="section" id="timers">
             <h2>Timers</h2>
             <div className="timer-list">
               {timers.length === 0 ? (
@@ -402,6 +451,46 @@ const Settings: React.FC = () => {
         </>
       )}
 
+      <div ref={claudeRef} className="section mcp-section" id="claude">
+        <h2>Claude Desktop Integration</h2>
+        <p className="help-text">
+          Connect Dingo Track to Claude Desktop using the Model Context Protocol (MCP).
+          This allows Claude to view and manage your timers directly.
+        </p>
+        <button
+          className="btn btn-claude"
+          onClick={async () => {
+            try {
+              const res = await window.api.generateMCPConfig();
+              alert('✅ Claude Desktop installer opened (dingo-track.mcpb). If Claude did not open, the file is in your Downloads folder.');
+            } catch (error) {
+              console.error('Failed to generate MCP config:', error);
+              alert('❌ Failed to generate MCP configuration');
+            }
+          }}
+        >
+          🔗 Connect to Claude Desktop
+        </button>
+      </div>
+
+      <div ref={generalRef} className="section" id="general">
+        <h2>General</h2>
+        <div className="setting-row">
+          <div className="setting-label">Open on startup</div>
+          <div className={`toggle-switch ${openAtLogin ? 'active' : ''}`} onClick={(e) => handleToggleOpenAtLogin({ target: { checked: !openAtLogin } } as any)} />
+        </div>
+        <div className="setting-row">
+          <div className="setting-label">Show Dock icon (macOS)</div>
+          <div className={`toggle-switch ${dockIconVisible ? 'active' : ''}`} onClick={(e) => handleToggleDockIcon({ target: { checked: !dockIconVisible } } as any)} />
+        </div>
+      </div>
+
+      <div ref={quitRef} className="section" id="quit">
+        <h2>Quit</h2>
+        <button className="btn btn-danger" onClick={() => window.api?.quitApp?.()}>
+          Quit Dingo Track
+        </button>
+      </div>
 
     </div>
   );

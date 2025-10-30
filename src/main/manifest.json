@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.2",
+  "name": "Dingo Trak",
+  "display_name": "Trak",
+  "version": "1.0.8",
+  "description": "Calendarized time tracking",
+  "long_description": "Used to set timers and have them uploaded to google calendar so that users can track their time spent doing certain tasks. it has the ability to access multiple calendars, make timers per calendar. it does not upload the tracked timer until it is complete. ",
+  "author": {
+    "name": "Dingo Systems"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "mcp-server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/mcp-server.js"
+      ],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "Trak"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "N",
+      "description": "N",
+      "text": "N"
+    }
+  ],
+  "license": "MIT"
+}

@@ -19,8 +19,14 @@ export interface ElectronAPI {
   
   // Window methods
   openSettings: () => Promise<void>;
+  hideMainWindow: () => Promise<void>;
   quitApp: () => Promise<void>;
   openDxtFile: () => Promise<void>;
+  generateMCPConfig: () => Promise<{ success: boolean; path: string }>;
+  getOpenAtLogin: () => Promise<boolean>;
+  setOpenAtLogin: (enabled: boolean) => Promise<boolean>;
+  getDockIconVisible: () => Promise<boolean>;
+  setDockIconVisible: (visible: boolean) => Promise<boolean>;
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => void;
@@ -49,8 +55,14 @@ const electronAPI: ElectronAPI = {
   
   // Window methods
   openSettings: () => ipcRenderer.invoke('open-settings'),
+  hideMainWindow: () => ipcRenderer.invoke('hide-main-window'),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   openDxtFile: () => ipcRenderer.invoke('open-dxt-file'),
+  generateMCPConfig: () => ipcRenderer.invoke('generate-mcp-config'),
+  getOpenAtLogin: () => ipcRenderer.invoke('get-open-at-login'),
+  setOpenAtLogin: (enabled: boolean) => ipcRenderer.invoke('set-open-at-login', enabled),
+  getDockIconVisible: () => ipcRenderer.invoke('get-dock-icon-visible'),
+  setDockIconVisible: (visible: boolean) => ipcRenderer.invoke('set-dock-icon-visible', visible),
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => {

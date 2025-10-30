@@ -1,15 +1,18 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } from 'electron';
+import * as electron from 'electron';
+import type { Tray as TrayType, BrowserWindow as BrowserWindowType } from 'electron';
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } = electron;
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
+import * as archiver from 'archiver';
+import * as path from 'path';
+import { homedir } from 'os';
 import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
 import { TimerService } from './services/timerService';
-import { SimpleStore } from './services/StorageService';
 import { serviceContainer, SERVICE_TOKENS } from './utils/ServiceContainer';
 import { bootstrapServices, initializeUserContext, setupOAuthEventListeners, cleanupServices } from './bootstrap';
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
-import * as path from 'path';
 
 // Load .env file - handle both development and production paths
 // Check for electron-vite development or original build system
@@ -37,14 +40,17 @@ console.log('Environment check:', {
   clientSecretLength: process.env.GOOGLE_CLIENT_SECRET?.length || 0
 });
 
-let tray: (Tray & { clickTimeout?: NodeJS.Timeout }) | null = null;
-let mainWindow: BrowserWindow | null = null;
-let settingsWindow: BrowserWindow | null = null;
-const store = new SimpleStore({ name: 'dingo-track' });
+let tray: (TrayType & { clickTimeout?: NodeJS.Timeout }) | null = null;
+let mainWindow: BrowserWindowType | null = null;
+let settingsWindow: BrowserWindowType | null = null;
+let lastAuthRequestingWindowId: number | null = null;
 
 // Services - now managed by DI container
 let googleCalendarService: GoogleCalendarServiceSimple;
 let timerService: TimerService;
+
+// Storage file watcher for MCP changes
+let storageWatcher: fs.FSWatcher | null = null;
 
 async function initializeServices() {
   try {
@@ -74,10 +80,44 @@ async function initializeServices() {
         console.log('Sending oauth-success to window:', window.id);
         window.webContents.send('oauth-success');
       });
+
+      // Restore focus to the window that initiated OAuth
+      try {
+        const targetId = lastAuthRequestingWindowId;
+        lastAuthRequestingWindowId = null; // reset
+
+        if (targetId) {
+          const target = BrowserWindow.getAllWindows().find(w => w.id === targetId) || null;
+          if (target && !target.isDestroyed()) {
+            if (settingsWindow && target.id === settingsWindow.id) {
+              settingsWindow.show();
+              settingsWindow.focus();
+            } else if (mainWindow && target.id === mainWindow.id) {
+              // If the menu bar window initiated the flow, show it in place
+              showMainWindow();
+            } else {
+              target.show();
+              target.focus();
+            }
+            return;
+          }
+        }
+
+        // Fallback: focus app and show main window
+        app.focus({ steal: true } as any);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          showMainWindow();
+        }
+      } catch (e) {
+        console.warn('Focus restore failed:', e);
+      }
     });
     
     // Initialize user context if already authenticated
     await initializeUserContext(isDev);
+    
+    // Set up MCP signal watcher
+    setupStorageWatcher();
     
     // Set up OAuth completion handler
     const oauthEmitter = serviceContainer.get<EventEmitter>(SERVICE_TOKENS.EventEmitter);
@@ -119,10 +159,37 @@ async function initializeServices() {
   }
 }
 
-// Initialize services
-initializeServices();
+// Storage file watcher setup - watches timer storage for MCP changes
+function setupStorageWatcher() {
+  try {
+    const storageDir = app.getPath('userData');
+    const timerFile = 'dingo-track-timers.json';
 
+    console.log('🔔 Setting up storage watcher at:', storageDir);
 
+    // Watch the entire directory for changes to the timer file
+    storageWatcher = fs.watch(storageDir, (eventType, filename) => {
+      if (filename === timerFile || filename === `${timerFile}.tmp`) {
+        // Timer storage was modified (by MCP server or internally)
+        console.log('📁 Storage file changed, refreshing all windows');
+
+        // Debounce: wait a bit to ensure file write is complete
+        setTimeout(() => {
+          // Notify all windows to refresh their data
+          BrowserWindow.getAllWindows().forEach(window => {
+            if (!window.isDestroyed()) {
+              window.webContents.send('data-changed');
+            }
+          });
+        }, 150);
+      }
+    });
+
+    console.log('✅ Storage watcher started');
+  } catch (error) {
+    console.error('Failed to setup storage watcher:', error);
+  }
+}
 
 function createTray(): void {
   const fs = require('fs');
@@ -411,7 +478,8 @@ function createSettingsWindow(): void {
   });
 }
 
-// IPC handlers
+// Setup IPC handlers (called after app is ready and services are initialized)
+function setupIPCHandlers() {
 ipcMain.handle('get-calendars', async () => {
   const calendars = await googleCalendarService.getCalendars();
   
@@ -424,11 +492,17 @@ ipcMain.handle('get-calendars', async () => {
   return calendars;
 });
 
-ipcMain.handle('start-auth', async () => {
+ipcMain.handle('start-auth', async (event) => {
   try {
     const result = await googleCalendarService.authenticate();
     
     if (result.authUrl) {
+      // Remember which window initiated the OAuth flow
+      try {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        lastAuthRequestingWindowId = win ? win.id : null;
+      } catch {}
+
       // Open the auth URL in the default browser
       await shell.openExternal(result.authUrl);
       
@@ -581,9 +655,66 @@ ipcMain.handle('open-settings', () => {
   }
 });
 
+ipcMain.handle('hide-main-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+    hideMainWindowWithAnimation();
+  }
+});
+
 ipcMain.handle('quit-app', () => {
   console.log('quit-app IPC handler called');
   app.quit();
+});
+
+// Open at login controls
+ipcMain.handle('get-open-at-login', () => {
+  try {
+    const settings = app.getLoginItemSettings();
+    return !!settings.openAtLogin;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('set-open-at-login', (event, enabled: boolean) => {
+  try {
+    app.setLoginItemSettings({ openAtLogin: !!enabled, openAsHidden: true });
+    const settings = app.getLoginItemSettings();
+    return !!settings.openAtLogin;
+  } catch {
+    return false;
+  }
+});
+
+// Dock icon visibility (macOS only)
+ipcMain.handle('get-dock-icon-visible', () => {
+  if (process.platform !== 'darwin') return false;
+  try {
+    return app.dock.isVisible();
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('set-dock-icon-visible', (event, visible: boolean) => {
+  if (process.platform !== 'darwin') return false;
+  try {
+    if (visible) {
+      // Ensure Dock icon uses the .icns asset when showing
+      try {
+        const icnsPath = path.join(__dirname, '../../assets/app-icon.icns');
+        if (fs.existsSync(icnsPath)) {
+          app.dock.setIcon(icnsPath);
+        }
+      } catch {}
+      app.dock.show();
+    } else {
+      app.dock.hide();
+    }
+    return app.dock.isVisible();
+  } catch {
+    return false;
+  }
 });
 
 ipcMain.handle('open-dxt-file', async () => {
@@ -614,6 +745,80 @@ ipcMain.handle('open-dxt-file', async () => {
   }
 });
 
+// Generate MCPB bundle for Claude Desktop
+ipcMain.handle('generate-mcp-config', async () => {
+  try {
+    const AdmZip = require('adm-zip');
+
+    // Determine the correct path to the MCP server based on environment
+    const mcpServerPath = isDev
+      ? path.join(__dirname, '..', '..', 'out', 'main', 'mcp-server.js')
+      : path.join(process.resourcesPath, 'app.asar', 'out', 'main', 'mcp-server.js');
+
+    // Create MCPB manifest according to spec
+    const manifest = {
+      manifest_version: "0.2",
+      name: "dingo-track",
+      version: "1.0.0",
+      display_name: "Dingo Track",
+      description: "Time tracking with Google Calendar integration. Control your timers and track time directly from Claude.",
+      author: {
+        name: "Every Time",
+        url: "https://github.com/yourusername/trak"
+      },
+      server: {
+        type: "node",
+        entry_point: "mcp-server.js",
+        mcp_config: {
+          command: "node",
+          args: ["${__dirname}/mcp-server.js"],
+          env: {}
+        }
+      },
+      tools: [
+        { name: "list_timers", description: "List all configured timers" },
+        { name: "add_timer", description: "Add a new timer with calendar association" },
+        { name: "delete_timer", description: "Delete a timer by name" },
+        { name: "get_active_timers", description: "Get currently running timers" },
+        { name: "list_calendars", description: "List Google Calendars" },
+        { name: "get_timer_status", description: "Get timer status and duration" },
+        { name: "start_stop_timer", description: "Start or stop a timer by name" }
+      ],
+      compatibility: {
+        runtime: {
+          node: ">=16.0.0"
+        }
+      }
+    };
+
+    // Create zip file
+    const zip = new AdmZip();
+
+    // Add manifest.json to root
+    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'));
+
+    // Add the MCP server to the root of the bundle
+    const serverCode = fs.readFileSync(mcpServerPath);
+    zip.addFile('mcp-server.js', serverCode);
+
+    // Get the downloads folder
+    const downloadsPath = app.getPath('downloads');
+    const mcpbPath = path.join(downloadsPath, 'dingo-track.mcpb');
+
+    // Write the MCPB file
+    zip.writeZip(mcpbPath);
+
+    // Open MCPB for install; if fails, reveal in folder
+    const openResult = await shell.openPath(mcpbPath);
+    if (openResult) shell.showItemInFolder(mcpbPath);
+
+    return { success: true, path: mcpbPath };
+  } catch (error) {
+    console.error('Failed to generate MCPB:', error);
+    throw error;
+  }
+});
+
 // Data change notifications
 ipcMain.on('notify-data-changed', () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -632,29 +837,45 @@ ipcMain.on('notify-calendar-change', () => {
     settingsWindow.webContents.send('data-changed');
   }
 });
+}
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
+    // Initialize services first (must be after app is ready)
+    await initializeServices();
+
+    // Setup IPC handlers after services are ready
+    setupIPCHandlers();
+
     // Configure as menu bar app on all platforms
     if (process.platform === 'darwin') {
-      app.dock.hide();
+      // Set macOS Dock icon and show Dock by default
+      try {
+        const icnsPath = path.join(__dirname, '../../assets/app-icon.icns');
+        if (fs.existsSync(icnsPath)) {
+          app.dock.setIcon(icnsPath);
+        }
+        app.dock.show();
+      } catch (e) {
+        console.warn('Failed to set/show Dock icon:', e);
+      }
     }
-    
+
     // Completely remove menu on all platforms
     Menu.setApplicationMenu(null);
-    
+
     createTray();
   } catch (error) {
     console.error('Failed to initialize app:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     // Show error dialog to user
     dialog.showErrorBox(
-      'App Initialization Error', 
+      'App Initialization Error',
       `Dingo Track failed to start properly.\n\nError: ${errorMessage}\n\nThe app will now close.`
     );
-    
+
     // Exit the app
     app.quit();
     process.exit(1);
@@ -680,6 +901,12 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   // Clean up services
   cleanupServices();
+  
+  // Clean up storage watcher
+  if (storageWatcher) {
+    storageWatcher.close();
+    storageWatcher = null;
+  }
   
   // Clean up tray
   if (tray && !tray.isDestroyed()) {

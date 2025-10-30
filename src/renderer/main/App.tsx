@@ -274,12 +274,12 @@ const App: React.FC = () => {
     }
   };
 
-  const quitApp = () => {
-    console.log('Quit button clicked');
-    if (window.api && window.api.quitApp) {
-      window.api.quitApp();
+  const closeMenuBarWindow = () => {
+    console.log('Close window button clicked');
+    if (window.api && window.api.hideMainWindow) {
+      window.api.hideMainWindow();
     } else {
-      console.error('window.api.quitApp not available');
+      console.error('window.api.hideMainWindow not available');
     }
   };
 
@@ -357,7 +357,7 @@ const App: React.FC = () => {
         <div className="menu-item" onClick={openSettings}>
           <span className="menu-item-text">⚙️</span>
         </div>
-        <div className="menu-item" onClick={quitApp}>
+        <div className="menu-item" onClick={closeMenuBarWindow}>
           <span className="menu-item-text">✕</span>
         </div>
       </div>

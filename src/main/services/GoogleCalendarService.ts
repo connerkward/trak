@@ -1,6 +1,8 @@
 import * as https from 'https';
 import * as http from 'http';
 import * as url from 'url';
+import * as fs from 'fs';
+import * as path from 'path';
 import { SimpleStore } from './StorageService';
 import type { Calendar, CalendarEvent, AuthTokens } from '../../shared/types';
 
@@ -10,6 +12,7 @@ export class GoogleCalendarServiceSimple {
   private clientId: string;
   private clientSecret: string;
   private authSuccessCallback?: () => void;
+  private redirectPort: number = 0; // Dynamic port
 
   constructor() {
     this.store = new SimpleStore({ name: 'dingo-track' });
@@ -44,11 +47,13 @@ export class GoogleCalendarServiceSimple {
     });
   }
 
-  // Get authorization URL
-  getAuthUrl(): string {
+  // Get authorization URL with dynamic port
+  getAuthUrl(port: number): string {
     const scopes = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
-    const redirectUri = 'http://localhost:3000/callback';
-    
+    // Use loopback address (127.0.0.1) which is allowed for Desktop apps
+    // This is Mac App Store compliant for OAuth flows
+    const redirectUri = `http://127.0.0.1:${port}/callback`;
+
     const params = new URLSearchParams({
       client_id: this.clientId,
       redirect_uri: redirectUri,
@@ -62,13 +67,13 @@ export class GoogleCalendarServiceSimple {
   }
 
   // Exchange code for tokens
-  async exchangeCodeForTokens(code: string): Promise<AuthTokens> {
+  async exchangeCodeForTokens(code: string, redirectUri: string): Promise<AuthTokens> {
     const tokenData = new URLSearchParams({
       client_id: this.clientId,
       client_secret: this.clientSecret,
       code: code,
       grant_type: 'authorization_code',
-      redirect_uri: 'http://localhost:3000/callback'
+      redirect_uri: redirectUri
     });
 
     const options: https.RequestOptions = {
@@ -203,18 +208,27 @@ export class GoogleCalendarServiceSimple {
     };
 
     const response = await this.makeRequest(options);
-    
+
     // Filter to only include writable calendars (owner or writer access)
-    const writableCalendars = response.items.filter((item: any) => 
+    const writableCalendars = response.items.filter((item: any) =>
       item.accessRole === 'owner' || item.accessRole === 'writer'
     );
-    
-    return writableCalendars.map((item: any) => ({
+
+    const calendars: Calendar[] = writableCalendars.map((item: any) => ({
       id: item.id,
       name: item.summary,
       primary: item.primary || false,
       accessRole: item.accessRole
     }));
+
+    // Persist latest calendars for external integrations (e.g., MCP server)
+    try {
+      this.store.set('calendars', calendars);
+    } catch (e) {
+      console.warn('Failed to persist calendars list:', e);
+    }
+
+    return calendars;
   }
 
   // Create event
@@ -295,118 +309,166 @@ export class GoogleCalendarServiceSimple {
     this.authSuccessCallback = callback;
   }
 
-  // Start local server to handle OAuth callback
-  private startLocalServer(): Promise<string> {
+  // Start local loopback server for OAuth (Mac App Store compliant)
+  private startLoopbackServer(): Promise<{ server: http.Server; port: number; authCodePromise: Promise<string> }> {
     return new Promise((resolve, reject) => {
+      let authCodeResolve: (code: string) => void;
+      let authCodeReject: (error: Error) => void;
+
+      const authCodePromise = new Promise<string>((res, rej) => {
+        authCodeResolve = res;
+        authCodeReject = rej;
+      });
+
       const server = http.createServer(async (req, res) => {
         const parsedUrl = url.parse(req.url!, true);
-        
+
         if (parsedUrl.pathname === '/callback') {
           const authCode = parsedUrl.query.code as string;
-          
+          const error = parsedUrl.query.error as string;
+
           if (authCode) {
-            // Success page
+            // Success page (on-brand styling)
             res.writeHead(200, { 'Content-Type': 'text/html' });
+            // Inline logo as base64 to avoid external fetch
+            let logoSrc = '';
+            try {
+              const logoPath = path.join(__dirname, '../../assets/app-icon.png');
+              const logo = fs.readFileSync(logoPath);
+              logoSrc = `data:image/png;base64,${logo.toString('base64')}`;
+            } catch {}
             res.end(`
               <html>
-                <head><title>Dingo Track - Authentication Success</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-                  <h1>Authentication Successful!</h1>
-                  <p>You can now close this window and return to Dingo Track.</p>
-                  <script>setTimeout(() => window.close(), 2000);</script>
+                <head>
+                  <title>Dingo Track • Connected</title>
+                  <meta charset="utf-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1" />
+                </head>
+                <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+                  <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                    ${logoSrc ? `<img alt="Dingo Track" src="${logoSrc}" style="width:48px;height:48px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:12px;" />` : ''}
+                    <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#28a745;">✓</div>
+                    <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Successful</h1>
+                    <p style="margin:0 0 16px 0;color:#b0b0b0;font-size:14px;">You can close this window and return to Dingo Track.</p>
+                    <div style="margin-top:12px;color:#8a8a8a;font-size:12px;">This window will close automatically…</div>
+                  </div>
+                  <script>setTimeout(() => window.close(), 1600);</script>
                 </body>
               </html>
             `);
-            
-            server.close();
-            
-            try {
-              // Exchange the auth code for tokens
-              console.log('📝 Exchanging auth code for tokens...');
-              const tokens = await this.exchangeCodeForTokens(authCode);
-              this.storeTokens(tokens);
-              
-              // Get the actual user ID (hash of calendar data, no personal info)
-              const userId = await this.getUserId();
-              this.setCurrentUser(userId);
-              console.log('📝 Tokens stored, setting current user to:', userId);
-              
-              // IMPORTANT: Wait a tick to ensure user ID is fully set before callback
-              await new Promise(resolve => setImmediate(resolve));
-              
-              // Notify all windows of auth success
-              if (this.authSuccessCallback) {
-                console.log('📝 Calling auth success callback with userId:', userId);
-                this.authSuccessCallback();
-              } else {
-                console.log('📝 No auth success callback set!');
-              }
-              
-              resolve('success');
-            } catch (error) {
-              reject(error);
-            }
-          } else if (parsedUrl.query.error) {
-            // Error page
+
+            authCodeResolve(authCode);
+          } else if (error) {
+            // Error page (on-brand styling)
             res.writeHead(400, { 'Content-Type': 'text/html' });
             res.end(`
               <html>
-                <head><title>Dingo Track - Authentication Error</title></head>
-                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
-                  <h1>❌ Authentication Failed</h1>
-                  <p>Error: ${parsedUrl.query.error}</p>
-                  <p>You can close this window and try again.</p>
+                <head>
+                  <title>Dingo Track • Authentication Error</title>
+                  <meta charset="utf-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1" />
+                </head>
+                <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+                  <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:480px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                    <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#ff453a;">✕</div>
+                    <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Failed</h1>
+                    <p style="margin:0 0 12px 0;color:#b0b0b0;font-size:14px;">Error: ${error}</p>
+                    <div style="margin-top:8px;color:#8a8a8a;font-size:12px;">You can close this window and try again.</div>
+                  </div>
                 </body>
               </html>
             `);
-            
-            server.close();
-            reject(new Error(`OAuth error: ${parsedUrl.query.error}`));
+
+            authCodeReject(new Error(`OAuth error: ${error}`));
           }
         }
       });
-      
-      server.listen(3000, () => {
-        console.log('OAuth callback server listening on http://localhost:3000');
+
+      // Listen on random available port (0 = let OS choose)
+      server.listen(0, '127.0.0.1', () => {
+        const address = server.address();
+        if (address && typeof address === 'object') {
+          const port = address.port;
+          console.log(`OAuth loopback server listening on http://127.0.0.1:${port}`);
+          resolve({ server, port, authCodePromise });
+        } else {
+          reject(new Error('Failed to get server address'));
+        }
       });
-      
+
       server.on('error', (error) => {
         reject(error);
       });
     });
   }
 
-  // Authenticate - starts OAuth flow with automatic redirect handling
+  // Authenticate - starts OAuth flow with loopback server
   async authenticate(): Promise<{ authUrl: string }> {
-    // Start the local callback server
-    const serverPromise = this.startLocalServer();
-    
-    // Generate auth URL
-    const authUrl = this.getAuthUrl();
-    
-    // Return the auth URL, server will handle the callback
+    // Start the loopback server on a dynamic port
+    const { server, port, authCodePromise } = await this.startLoopbackServer();
+    this.redirectPort = port;
+
+    // Generate auth URL with the dynamic port
+    const authUrl = this.getAuthUrl(port);
+
+    // Handle the auth code in the background
+    authCodePromise.then(async (code) => {
+      try {
+        console.log('📝 Exchanging auth code for tokens...');
+        const redirectUri = `http://127.0.0.1:${port}/callback`;
+        const tokens = await this.exchangeCodeForTokens(code, redirectUri);
+        this.storeTokens(tokens);
+
+        // Get the actual user ID
+        const userId = await this.getUserId();
+        this.setCurrentUser(userId);
+        console.log('📝 Tokens stored, current user set to:', userId);
+
+        // Wait a tick before callback
+        await new Promise(resolve => setImmediate(resolve));
+
+        // Notify success
+        if (this.authSuccessCallback) {
+          console.log('📝 Calling auth success callback');
+          this.authSuccessCallback();
+        }
+      } catch (error) {
+        console.error('Error during OAuth token exchange:', error);
+      } finally {
+        // Close the server after a brief delay
+        setTimeout(() => {
+          server.close();
+          console.log('OAuth loopback server closed');
+        }, 3000);
+      }
+    }).catch((error) => {
+      console.error('OAuth error:', error);
+      server.close();
+    });
+
     return { authUrl };
   }
 
-  // Set auth code from OAuth callback
+  // Set auth code from OAuth callback (for manual flow if needed)
   async setAuthCode(code: string): Promise<AuthTokens> {
     console.log('📝 setAuthCode called with code');
-    const tokens = await this.exchangeCodeForTokens(code);
-    
+    const redirectUri = this.redirectPort ? `http://127.0.0.1:${this.redirectPort}/callback` : 'http://127.0.0.1:0/callback';
+    const tokens = await this.exchangeCodeForTokens(code, redirectUri);
+
     // Get the actual user ID (hash of calendar data, no personal info)
     const userId = await this.getUserId();
     this.setCurrentUser(userId);
     console.log('📝 setAuthCode: Current user set to:', userId);
-    
+
     // IMPORTANT: Wait a tick to ensure user ID is fully set before callback
     await new Promise(resolve => setImmediate(resolve));
-    
+
     // Notify all windows of auth success
     if (this.authSuccessCallback) {
       console.log('📝 Calling auth success callback from setAuthCode with userId:', userId);
       this.authSuccessCallback();
     }
-    
+
     return tokens;
   }
 
@@ -414,5 +476,6 @@ export class GoogleCalendarServiceSimple {
   async logout(): Promise<void> {
     this.clearTokens();
     this.setCurrentUser(null); // This will also clear from store
+    try { this.store.delete('calendars'); } catch {}
   }
 }
