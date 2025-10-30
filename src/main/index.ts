@@ -432,7 +432,7 @@ ipcMain.handle('start-auth', async () => {
       // Open the auth URL in the default browser
       await shell.openExternal(result.authUrl);
       
-      // The local server will handle the callback automatically
+      // The callback will be handled via trak:// URL scheme
       // No need to wait, just return success
       return { success: true };
     } else {
@@ -633,9 +633,95 @@ ipcMain.on('notify-calendar-change', () => {
   }
 });
 
+// Handle URL scheme callbacks (trak://callback?code=...)
+async function handleUrlSchemeCallback(url: string): Promise<void> {
+  console.log('📱 Received URL scheme callback:', url);
+  
+  try {
+    // Parse trak://callback?code=... or trak://callback?error=...
+    const urlMatch = url.match(/^trak:\/\/(callback)\?(.+)$/);
+    if (!urlMatch) {
+      console.log('Ignoring non-callback URL scheme:', url);
+      return;
+    }
+    
+    const queryString = urlMatch[2];
+    const params = new URLSearchParams(queryString);
+    const authCode = params.get('code');
+    const error = params.get('error');
+    
+    if (authCode) {
+      console.log('✅ OAuth callback received with code');
+      // Wait for services to be initialized if needed
+      if (!googleCalendarService) {
+        console.log('⏳ Waiting for services to initialize...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      if (googleCalendarService) {
+        // Exchange code for tokens
+        await googleCalendarService.setAuthCode(authCode);
+      } else {
+        console.error('❌ GoogleCalendarService not initialized yet');
+        dialog.showErrorBox(
+          'Authentication Error',
+          'Application is still initializing. Please try again in a moment.'
+        );
+      }
+    } else if (error) {
+      console.error('❌ OAuth error:', error);
+      dialog.showErrorBox(
+        'Authentication Error',
+        `OAuth authentication failed: ${error}`
+      );
+    }
+  } catch (error) {
+    console.error('Error parsing URL scheme callback:', error);
+    dialog.showErrorBox(
+      'Authentication Error',
+      `Failed to process authentication callback: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+// Register URL scheme handler
+if (!app.isDefaultProtocolClient('trak')) {
+  app.setAsDefaultProtocolClient('trak');
+}
+
+// Handle URL scheme on macOS (app already running)
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleUrlSchemeCallback(url).catch((error) => {
+    console.error('Error handling URL scheme callback:', error);
+  });
+});
+
+// Handle URL scheme on Windows/Linux (app launched via URL)
+if (process.platform !== 'darwin') {
+  const args = process.argv.slice(1);
+  const urlArg = args.find(arg => arg.startsWith('trak://'));
+  if (urlArg) {
+    handleUrlSchemeCallback(urlArg).catch((error) => {
+      console.error('Error handling URL scheme callback:', error);
+    });
+  }
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   try {
+    // Handle URL scheme on Windows/Linux (when app is ready)
+    if (process.platform !== 'darwin') {
+      const args = process.argv.slice(1);
+      const urlArg = args.find(arg => arg.startsWith('trak://'));
+      if (urlArg) {
+        handleUrlSchemeCallback(urlArg).catch((error) => {
+          console.error('Error handling URL scheme callback:', error);
+        });
+      }
+    }
+    
     // Configure as menu bar app on all platforms
     if (process.platform === 'darwin') {
       app.dock.hide();

@@ -46,6 +46,12 @@
   "build": {
     "appId": "com.everytime.trak",
     "productName": "Dingo Track",
+    "protocols": [
+      {
+        "name": "trak",
+        "schemes": ["trak"]
+      }
+    ],
     "directories": {
       "output": "dist-electron"
     },
