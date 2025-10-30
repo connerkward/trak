@@ -28,7 +28,7 @@ jobs:
     
     - name: Setup Python for native modules (macOS)
       if: matrix.os == 'macos-latest'
-      run: pip3 install setuptools
+      run: pip3 install --break-system-packages setuptools
     
     - name: Install dependencies
       run: pnpm install
