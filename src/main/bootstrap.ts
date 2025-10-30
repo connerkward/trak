@@ -5,7 +5,6 @@
 
 import { EventEmitter } from 'events';
 import { serviceContainer, SERVICE_TOKENS } from './utils/ServiceContainer';
-import { SimpleStore } from './services/StorageService';
 import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
 import { TimerService } from './services/timerService';
 

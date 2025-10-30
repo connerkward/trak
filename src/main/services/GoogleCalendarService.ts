@@ -1,6 +1,5 @@
 import * as https from 'https';
 import * as http from 'http';
-import * as url from 'url';
 import * as fs from 'fs';
 import * as path from 'path';
 import { SimpleStore } from './StorageService';
@@ -13,12 +12,14 @@ export class GoogleCalendarServiceSimple {
   private clientSecret: string;
   private authSuccessCallback?: () => void;
   private redirectPort: number = 0; // Dynamic port
+  private useCustomUrlScheme: boolean;
 
   constructor() {
     this.store = new SimpleStore({ name: 'dingo-track' });
     // Use bundled credentials in production, env vars in development
     this.clientId = process.env.GOOGLE_CLIENT_ID || process.env.DIST_GOOGLE_CLIENT_ID || '';
     this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.DIST_GOOGLE_CLIENT_SECRET || '';
+    this.useCustomUrlScheme = process.env.USE_CUSTOM_URL_SCHEME === 'true';
   }
 
   // Simple HTTP request helper
@@ -48,10 +49,11 @@ export class GoogleCalendarServiceSimple {
   }
 
   // Get authorization URL with dynamic port
+  // Note: Google requires localhost redirect URIs, so we always use localhost
+  // but can redirect to custom URL scheme after receiving the callback
   getAuthUrl(port: number): string {
     const scopes = 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
-    // Use loopback address (127.0.0.1) which is allowed for Desktop apps
-    // This is Mac App Store compliant for OAuth flows
+    // Google requires localhost for OAuth redirect URIs
     const redirectUri = `http://127.0.0.1:${port}/callback`;
 
     const params = new URLSearchParams({
@@ -321,65 +323,106 @@ export class GoogleCalendarServiceSimple {
       });
 
       const server = http.createServer(async (req, res) => {
-        const parsedUrl = url.parse(req.url!, true);
+        if (!req.url) return;
+        const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
         if (parsedUrl.pathname === '/callback') {
-          const authCode = parsedUrl.query.code as string;
-          const error = parsedUrl.query.error as string;
+          const authCode = parsedUrl.searchParams.get('code');
+          const error = parsedUrl.searchParams.get('error');
 
           if (authCode) {
-            // Success page (on-brand styling)
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            // Inline logo as base64 to avoid external fetch
-            let logoSrc = '';
-            try {
-              const logoPath = path.join(__dirname, '../../assets/app-icon.png');
-              const logo = fs.readFileSync(logoPath);
-              logoSrc = `data:image/png;base64,${logo.toString('base64')}`;
-            } catch {}
-            res.end(`
-              <html>
-                <head>
-                  <title>Dingo Track • Connected</title>
-                  <meta charset="utf-8" />
-                  <meta name="viewport" content="width=device-width, initial-scale=1" />
-                </head>
-                <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
-                  <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
-                    ${logoSrc ? `<img alt="Dingo Track" src="${logoSrc}" style="width:48px;height:48px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:12px;" />` : ''}
-                    <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#28a745;">✓</div>
-                    <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Successful</h1>
-                    <p style="margin:0 0 16px 0;color:#b0b0b0;font-size:14px;">You can close this window and return to Dingo Track.</p>
-                    <div style="margin-top:12px;color:#8a8a8a;font-size:12px;">This window will close automatically…</div>
-                  </div>
-                  <script>setTimeout(() => window.close(), 1600);</script>
-                </body>
-              </html>
-            `);
-
-            authCodeResolve(authCode);
+            if (this.useCustomUrlScheme) {
+              // Redirect to custom URL scheme, protocol handler will process it
+              const customUrl = `trak://callback?code=${encodeURIComponent(authCode)}`;
+              res.writeHead(302, { 'Location': customUrl });
+              res.end(`
+                <html>
+                  <head>
+                    <title>Redirecting...</title>
+                    <meta http-equiv="refresh" content="0;url=${customUrl}" />
+                    <script>window.location.href = "${customUrl}";</script>
+                  </head>
+                  <body>Redirecting to Dingo Track...</body>
+                </html>
+              `);
+              // Don't resolve here - let protocol handler process it
+              // Close server after redirect (protocol handler will process via setAuthCode)
+              setTimeout(() => {
+                server.close();
+                console.log('OAuth loopback server closed (redirected to custom URL scheme)');
+              }, 1000);
+            } else {
+              // Success page (on-brand styling)
+              res.writeHead(200, { 'Content-Type': 'text/html' });
+              // Inline logo as base64 to avoid external fetch
+              let logoSrc = '';
+              try {
+                const logoPath = path.join(__dirname, '../../assets/app-icon.png');
+                const logo = fs.readFileSync(logoPath);
+                logoSrc = `data:image/png;base64,${logo.toString('base64')}`;
+              } catch {}
+              res.end(`
+                <html>
+                  <head>
+                    <title>Dingo Track • Connected</title>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                  </head>
+                  <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+                    <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:420px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                      ${logoSrc ? `<img alt="Dingo Track" src="${logoSrc}" style="width:48px;height:48px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.35);margin-bottom:12px;" />` : ''}
+                      <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#28a745;">✓</div>
+                      <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Successful</h1>
+                      <p style="margin:0 0 16px 0;color:#b0b0b0;font-size:14px;">You can close this window and return to Dingo Track.</p>
+                      <div style="margin-top:12px;color:#8a8a8a;font-size:12px;">This window will close automatically…</div>
+                    </div>
+                    <script>setTimeout(() => window.close(), 1600);</script>
+                  </body>
+                </html>
+              `);
+              if (authCode) authCodeResolve(authCode);
+            }
           } else if (error) {
-            // Error page (on-brand styling)
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end(`
-              <html>
-                <head>
-                  <title>Dingo Track • Authentication Error</title>
-                  <meta charset="utf-8" />
-                  <meta name="viewport" content="width=device-width, initial-scale=1" />
-                </head>
-                <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
-                  <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:480px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
-                    <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#ff453a;">✕</div>
-                    <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Failed</h1>
-                    <p style="margin:0 0 12px 0;color:#b0b0b0;font-size:14px;">Error: ${error}</p>
-                    <div style="margin-top:8px;color:#8a8a8a;font-size:12px;">You can close this window and try again.</div>
-                  </div>
-                </body>
-              </html>
-            `);
-
-            authCodeReject(new Error(`OAuth error: ${error}`));
+            const errorMessage = error || 'Unknown error';
+            if (this.useCustomUrlScheme) {
+              // Redirect error to custom URL scheme
+              const customUrl = `trak://callback?error=${encodeURIComponent(errorMessage)}`;
+              res.writeHead(302, { 'Location': customUrl });
+              res.end(`
+                <html>
+                  <head>
+                    <title>Error</title>
+                    <meta http-equiv="refresh" content="0;url=${customUrl}" />
+                    <script>window.location.href = "${customUrl}";</script>
+                  </head>
+                  <body>Redirecting...</body>
+                </html>
+              `);
+              setTimeout(() => {
+                server.close();
+              }, 1000);
+            } else {
+              // Error page (on-brand styling)
+              res.writeHead(400, { 'Content-Type': 'text/html' });
+              res.end(`
+                <html>
+                  <head>
+                    <title>Dingo Track • Authentication Error</title>
+                    <meta charset="utf-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1" />
+                  </head>
+                  <body style="margin:0;background:linear-gradient(135deg,#1a1a1a 0%,#0a0a0a 100%);color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+                    <div style="background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:480px;width:90%;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+                      <div style="font-size:28px;line-height:1;margin-bottom:12px;color:#ff453a;">✕</div>
+                      <h1 style="margin:0 0 8px 0;font-size:20px;color:#ffffff;">Authentication Failed</h1>
+                      <p style="margin:0 0 12px 0;color:#b0b0b0;font-size:14px;">Error: ${errorMessage}</p>
+                      <div style="margin-top:8px;color:#8a8a8a;font-size:12px;">You can close this window and try again.</div>
+                    </div>
+                  </body>
+                </html>
+              `);
+              authCodeReject(new Error(`OAuth error: ${errorMessage}`));
+            }
           }
         }
       });
@@ -403,13 +446,19 @@ export class GoogleCalendarServiceSimple {
   }
 
   // Authenticate - starts OAuth flow with loopback server
+  // Note: Google requires localhost, but we can redirect to custom URL scheme after callback
   async authenticate(): Promise<{ authUrl: string }> {
-    // Start the loopback server on a dynamic port
+    // Always use loopback server (Google requires localhost)
+    // If custom URL scheme is enabled, we'll redirect to it after receiving callback
     const { server, port, authCodePromise } = await this.startLoopbackServer();
     this.redirectPort = port;
 
-    // Generate auth URL with the dynamic port
+    // Generate auth URL with the dynamic port (always localhost for Google)
     const authUrl = this.getAuthUrl(port);
+    
+    if (this.useCustomUrlScheme) {
+      console.log('🔗 Using custom URL scheme redirect after localhost callback');
+    }
 
     // Handle the auth code in the background
     authCodePromise.then(async (code) => {
@@ -452,6 +501,7 @@ export class GoogleCalendarServiceSimple {
   // Set auth code from OAuth callback (for manual flow if needed)
   async setAuthCode(code: string): Promise<AuthTokens> {
     console.log('📝 setAuthCode called with code');
+    // Always use localhost redirect URI for token exchange (Google requirement)
     const redirectUri = this.redirectPort ? `http://127.0.0.1:${this.redirectPort}/callback` : 'http://127.0.0.1:0/callback';
     const tokens = await this.exchangeCodeForTokens(code, redirectUri);
 

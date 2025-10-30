@@ -1,11 +1,9 @@
 import * as electron from 'electron';
 import type { Tray as TrayType, BrowserWindow as BrowserWindowType } from 'electron';
 const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } = electron;
-import { EventEmitter } from 'events';
 import * as fs from 'fs';
-import * as archiver from 'archiver';
 import * as path from 'path';
-import { homedir } from 'os';
+import { exec } from 'child_process';
 import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
 import { TimerService } from './services/timerService';
 import { serviceContainer, SERVICE_TOKENS } from './utils/ServiceContainer';
@@ -29,6 +27,17 @@ if (isDev) {
 }
 
 dotenv.config({ path: envPath });
+
+// Check if custom URL scheme should be used (development flag)
+const USE_CUSTOM_URL_SCHEME = process.env.USE_CUSTOM_URL_SCHEME === 'true';
+console.log('🔗 Custom URL scheme enabled:', USE_CUSTOM_URL_SCHEME);
+
+// Register custom URL scheme handler BEFORE app is ready
+if (USE_CUSTOM_URL_SCHEME) {
+  if (!app.isDefaultProtocolClient('trak')) {
+    app.setAsDefaultProtocolClient('trak');
+  }
+}
 
 // Debug: Log if environment variables are loaded
 console.log('Environment check:', {
@@ -56,6 +65,15 @@ let storageWatcher: fs.FSWatcher | null = null;
 let mcpPollInterval: NodeJS.Timeout | null = null;
 let lastKnownMcpTimestamp = 0;
 
+// Helper function to notify all windows of data changes
+function notifyAllWindows(event: string): void {
+  BrowserWindow.getAllWindows().forEach(window => {
+    if (!window.isDestroyed()) {
+      window.webContents.send(event);
+    }
+  });
+}
+
 async function initializeServices() {
   try {
     // Bootstrap all services with dependency injection
@@ -80,10 +98,7 @@ async function initializeServices() {
       }
       
       // Notify all windows that OAuth completed successfully
-      BrowserWindow.getAllWindows().forEach(window => {
-        console.log('Sending oauth-success to window:', window.id);
-        window.webContents.send('oauth-success');
-      });
+      notifyAllWindows('oauth-success');
 
       // Restore focus to the window that initiated OAuth
       try {
@@ -124,29 +139,6 @@ async function initializeServices() {
     setupStorageWatcher();
     setupMcpPolling();
 
-    // Set up OAuth completion handler
-    const oauthEmitter = serviceContainer.get<EventEmitter>(SERVICE_TOKENS.EventEmitter);
-    oauthEmitter.on('oauth-completed', async (data: any) => {
-      console.log('OAuth completed - notifying all windows', data);
-      
-      // Get the current user ID and set it in both services
-      try {
-        const userId = googleCalendarService.getCurrentUserId();
-        if (userId) {
-          console.log('Setting current user:', userId);
-          googleCalendarService.setCurrentUser(userId);
-          timerService.setCurrentUser(userId);
-        }
-      } catch (error) {
-        console.error('Error getting user ID:', error);
-      }
-      
-      // Notify all windows that authentication succeeded
-      BrowserWindow.getAllWindows().forEach(window => {
-        console.log('Sending oauth-success to window:', window.id);
-        window.webContents.send('oauth-success');
-      });
-    });
   } catch (error) {
     console.error('Failed to initialize services:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -180,12 +172,8 @@ function setupStorageWatcher() {
 
         // Debounce: wait a bit to ensure file write is complete
         setTimeout(() => {
-          // Notify all windows to refresh their data
-          BrowserWindow.getAllWindows().forEach(window => {
-            if (!window.isDestroyed()) {
-              window.webContents.send('data-changed');
-            }
-          });
+        // Notify all windows to refresh their data
+        notifyAllWindows('data-changed');
         }, 150);
       }
     });
@@ -222,12 +210,7 @@ function setupMcpPolling() {
         // Immediately notify all windows
         const windows = BrowserWindow.getAllWindows();
         console.log(`   📢 Notifying ${windows.length} window(s) of data change`);
-        windows.forEach(window => {
-          if (!window.isDestroyed()) {
-            console.log(`   → Sending 'data-changed' to window ${window.id}`);
-            window.webContents.send('data-changed');
-          }
-        });
+        notifyAllWindows('data-changed');
       }
     } catch (error) {
       // MCP server not running or unreachable - this is normal if MCP isn't active
@@ -239,7 +222,6 @@ function setupMcpPolling() {
 }
 
 function createTray(): void {
-  const fs = require('fs');
   // Use Electron template naming on macOS
   const isMac = process.platform === 'darwin';
   const fileName = isMac ? 'tray-iconTemplate.png' : 'tray-icon.png';
@@ -292,11 +274,7 @@ function createTray(): void {
             try {
               await timerService.startStopTimer(timer.name);
               // Notify all windows of data change
-              BrowserWindow.getAllWindows().forEach(window => {
-                if (!window.isDestroyed()) {
-                  window.webContents.send('data-changed');
-                }
-              });
+              notifyAllWindows('data-changed');
             } catch (error) {
               console.error('Error starting/stopping timer:', error);
             }
@@ -372,11 +350,6 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
     mainWindow.loadFile(path.join(__dirname, '../renderer/main/index.html'));
   }
   
-  // Open DevTools in development for debugging
-  if (isDev) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  }
-
   // Handle keyboard shortcuts
   mainWindow.webContents.on('before-input-event', (event, input) => {
     // Close window with Escape key
@@ -390,22 +363,17 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
   mainWindow.once('ready-to-show', () => {
     showMainWindow(trayBounds);
     
-    // Open DevTools in development for debugging
-    if (isDev && mainWindow) {
-      mainWindow.webContents.openDevTools({ mode: 'detach' });
-    }
-    
     // Force data refresh when main window opens
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('data-changed');
+        notifyAllWindows('data-changed');
         console.log('📡 Sent initial data-changed to main window on open');
       }
     }, 200);
   });
 
   // Handle losing focus/clicking outside - with delay to prevent immediate closing
-  mainWindow.on('blur', () => {
+  const handleMainWindowBlur = () => {
     if (mainWindow && !mainWindow.webContents.isDevToolsOpened()) {
       // Add a delay to allow for tray icon click completion
       setTimeout(() => {
@@ -416,28 +384,8 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
         }
       }, 150); // Increased delay to allow tray click to complete
     }
-  });
-
-  // Additional event for more reliable click-outside detection
-  mainWindow.on('focus', () => {
-    // Track when window gains focus to ensure proper state
-  });
-
-  // Global blur detection as backup
-  const handleMainWindowBlur = () => {
-    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible() && 
-        !mainWindow.isFocused() && !mainWindow.webContents.isDevToolsOpened()) {
-      setTimeout(() => {
-        // Double-check focus state after a brief delay
-        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isFocused() && 
-            mainWindow.isVisible() && !mainWindow.webContents.isDevToolsOpened()) {
-          hideMainWindowWithAnimation();
-        }
-      }, 100);
-    }
   };
 
-  // Listen for when main window loses focus specifically
   mainWindow.on('blur', handleMainWindowBlur);
 
   mainWindow.on('closed', () => {
@@ -569,7 +517,7 @@ function createSettingsWindow(): void {
       settingsWindow?.show();
       // Force data refresh when settings window opens
       if (settingsWindow && !settingsWindow.isDestroyed()) {
-        settingsWindow.webContents.send('data-changed');
+        notifyAllWindows('data-changed');
         console.log('📡 Sent initial data-changed to settings window on open');
       }
     }, 100);
@@ -634,9 +582,7 @@ ipcMain.handle('set-auth-code', async (event, authCode: string) => {
     }
     
     // Notify all windows that OAuth completed successfully
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('oauth-success');
-    });
+    notifyAllWindows('oauth-success');
     
     return true;
   } catch (error) {
@@ -654,10 +600,7 @@ ipcMain.handle('logout', async () => {
     timerService.setCurrentUser(null);
     
     // Notify all windows that logout completed
-    BrowserWindow.getAllWindows().forEach(window => {
-      console.log('Sending logout-success to window:', window.id);
-      window.webContents.send('logout-success');
-    });
+    notifyAllWindows('logout-success');
     
     return { success: true };
   } catch (error) {
@@ -687,9 +630,7 @@ ipcMain.handle('add-timer', async (event, name: string, calendarId: string) => {
     console.log(`✅ Timer added successfully:`, result);
     
     // Notify all windows of data change
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('data-changed');
-    });
+    notifyAllWindows('data-changed');
     
     return result;
   } catch (error) {
@@ -703,9 +644,7 @@ ipcMain.handle('save-timer', async (event, name: string, calendarId: string) => 
     const result = timerService.saveTimer(name, calendarId);
     
     // Notify all windows of data change
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('data-changed');
-    });
+    notifyAllWindows('data-changed');
     
     return result;
   } catch (error) {
@@ -719,9 +658,7 @@ ipcMain.handle('rename-timer', async (event, oldName: string, newName: string, c
     const result = timerService.renameTimer(oldName, newName, calendarId);
     
     // Notify all windows of data change
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('data-changed');
-    });
+    notifyAllWindows('data-changed');
     
     return result;
   } catch (error) {
@@ -735,9 +672,7 @@ ipcMain.handle('delete-timer', async (event, name: string) => {
     const result = timerService.deleteTimer(name);
     
     // Notify all windows of data change
-    BrowserWindow.getAllWindows().forEach(window => {
-      window.webContents.send('data-changed');
-    });
+    notifyAllWindows('data-changed');
     
     return result;
   } catch (error) {
@@ -787,6 +722,22 @@ ipcMain.handle('set-open-at-login', (event, enabled: boolean) => {
     return !!settings.openAtLogin;
   } catch {
     return false;
+  }
+});
+
+ipcMain.handle('open-login-items', () => {
+  if (process.platform === 'darwin') {
+    // Open macOS System Settings to Login Items using open command
+    exec('open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"', (err) => {
+      if (err) {
+        console.error('Failed to open Login Items:', err);
+        // Fallback: try opening System Settings generally
+        shell.openExternal('x-apple.systempreferences:');
+      }
+    });
+  } else {
+    // For other platforms, just return (no-op)
+    console.log('Login items settings not available on this platform');
   }
 });
 
@@ -928,27 +879,25 @@ ipcMain.handle('generate-mcp-config', async () => {
 
 // Data change notifications
 ipcMain.on('notify-data-changed', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('data-changed');
-  }
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('data-changed');
-  }
+  notifyAllWindows('data-changed');
 });
 
 ipcMain.on('notify-calendar-change', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('data-changed');
-  }
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('data-changed');
-  }
+  notifyAllWindows('data-changed');
 });
 }
 
 // App lifecycle
 app.whenReady().then(async () => {
   try {
+    // Check for custom URL scheme in process.argv (Windows/Linux)
+    if (USE_CUSTOM_URL_SCHEME && process.argv.length > 1) {
+      const protocolUrl = process.argv.find(arg => arg.startsWith('trak://'));
+      if (protocolUrl) {
+        handleCustomUrlScheme(protocolUrl);
+      }
+    }
+
     // Initialize services first (must be after app is ready)
     await initializeServices();
 
@@ -1003,6 +952,53 @@ app.whenReady().then(async () => {
   app.quit();
   process.exit(1);
 });
+
+// Handle custom URL scheme (macOS)
+if (USE_CUSTOM_URL_SCHEME) {
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleCustomUrlScheme(url);
+  });
+}
+
+
+// Function to handle custom URL scheme OAuth callback
+function handleCustomUrlScheme(url: string) {
+  console.log('🔗 Received custom URL scheme:', url);
+  
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.pathname === '/callback') {
+      const authCode = parsedUrl.searchParams.get('code');
+      const error = parsedUrl.searchParams.get('error');
+      
+      if (authCode) {
+        // Wait for services to be initialized if needed
+        if (googleCalendarService) {
+          console.log('📝 Processing OAuth callback from custom URL scheme');
+          googleCalendarService.setAuthCode(authCode).catch((err) => {
+            console.error('Error processing OAuth callback:', err);
+          });
+        } else {
+          // Services not ready yet, wait for app to be ready
+          app.whenReady().then(async () => {
+            await initializeServices();
+            if (googleCalendarService) {
+              console.log('📝 Processing OAuth callback from custom URL scheme (after init)');
+              googleCalendarService.setAuthCode(authCode).catch((err) => {
+                console.error('Error processing OAuth callback:', err);
+              });
+            }
+          });
+        }
+      } else if (error) {
+        console.error('OAuth error from custom URL scheme:', error);
+      }
+    }
+  } catch (err) {
+    console.error('Error parsing custom URL scheme:', err);
+  }
+}
 
 app.on('window-all-closed', () => {
   // Prevent app from quitting - we're a menu bar app

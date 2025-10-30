@@ -15,7 +15,6 @@ const Settings: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({ name: '', calendarId: '' });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
-  const [openAtLogin, setOpenAtLogin] = useState<boolean>(false);
   const [dockIconVisible, setDockIconVisible] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'google' | 'add' | 'calendars' | 'timers' | 'claude' | 'general' | 'quit'>('google');
   const googleRef = useRef<HTMLDivElement | null>(null);
@@ -73,9 +72,6 @@ const Settings: React.FC = () => {
     setHiddenCalendars(savedHidden);
 
     // Load open on startup
-    if (window.api && window.api.getOpenAtLogin) {
-      window.api.getOpenAtLogin().then(setOpenAtLogin).catch(() => {});
-    }
     // Load dock icon state (macOS)
     if (window.api && window.api.getDockIconVisible) {
       window.api.getDockIconVisible()
@@ -261,18 +257,6 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleToggleOpenAtLogin = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const enabled = e.target.checked;
-    setOpenAtLogin(enabled);
-    try {
-      if (window.api && window.api.setOpenAtLogin) {
-        const result = await window.api.setOpenAtLogin(enabled);
-        setOpenAtLogin(result);
-      }
-    } catch (error) {
-      console.error('Failed to update open at login:', error);
-    }
-  };
 
   const handleToggleDockIcon = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const visible = e.target.checked;
@@ -505,9 +489,22 @@ const Settings: React.FC = () => {
           </div>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => window.api?.openLoginItems?.()}
+            onClick={async () => {
+              try {
+                if (window.api && window.api.setOpenAtLogin) {
+                  await window.api.setOpenAtLogin(true);
+                  // Also open System Settings to show it was added
+                  if (window.api.openLoginItems) {
+                    window.api.openLoginItems();
+                  }
+                }
+              } catch (error) {
+                console.error('Failed to add to startup:', error);
+                alert('Failed to add to startup items');
+              }
+            }}
           >
-            System Settings
+            Add to Startup
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 18l6-6-6-6"/>
             </svg>
