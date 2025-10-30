@@ -52,6 +52,10 @@ let timerService: TimerService;
 // Storage file watcher for MCP changes
 let storageWatcher: fs.FSWatcher | null = null;
 
+// MCP HTTP polling for zero-latency updates
+let mcpPollInterval: NodeJS.Timeout | null = null;
+let lastKnownMcpTimestamp = 0;
+
 async function initializeServices() {
   try {
     // Bootstrap all services with dependency injection
@@ -115,10 +119,11 @@ async function initializeServices() {
     
     // Initialize user context if already authenticated
     await initializeUserContext(isDev);
-    
-    // Set up MCP signal watcher
+
+    // Set up MCP file watcher (fallback) and HTTP polling (primary, zero-latency)
     setupStorageWatcher();
-    
+    setupMcpPolling();
+
     // Set up OAuth completion handler
     const oauthEmitter = serviceContainer.get<EventEmitter>(SERVICE_TOKENS.EventEmitter);
     oauthEmitter.on('oauth-completed', async (data: any) => {
@@ -191,6 +196,48 @@ function setupStorageWatcher() {
   }
 }
 
+// MCP HTTP polling setup - polls MCP server for instant updates (standard MCP pattern)
+function setupMcpPolling() {
+  const MCP_HTTP_PORT = 3123;
+  const POLL_INTERVAL_MS = 500; // Poll every 500ms for near-instant updates
+
+  console.log('🌐 Setting up MCP HTTP polling on port', MCP_HTTP_PORT);
+
+  mcpPollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`http://localhost:${MCP_HTTP_PORT}/last-change`);
+      if (!response.ok) return; // MCP server not running, that's okay
+
+      const data = await response.json() as { timestamp: number };
+
+      // Check if timestamp changed (MCP made an update)
+      if (data.timestamp > lastKnownMcpTimestamp) {
+        const latency = Date.now() - data.timestamp;
+        console.log(`⚡ MCP change detected via HTTP polling! Timestamp: ${data.timestamp}, Latency: ${latency}ms`);
+        lastKnownMcpTimestamp = data.timestamp;
+
+        // Reload activeTimers from storage (MCP might have changed them)
+        timerService.reloadActiveTimers();
+
+        // Immediately notify all windows
+        const windows = BrowserWindow.getAllWindows();
+        console.log(`   📢 Notifying ${windows.length} window(s) of data change`);
+        windows.forEach(window => {
+          if (!window.isDestroyed()) {
+            console.log(`   → Sending 'data-changed' to window ${window.id}`);
+            window.webContents.send('data-changed');
+          }
+        });
+      }
+    } catch (error) {
+      // MCP server not running or unreachable - this is normal if MCP isn't active
+      // No need to log errors, just silently skip
+    }
+  }, POLL_INTERVAL_MS);
+
+  console.log('✅ MCP HTTP polling started');
+}
+
 function createTray(): void {
   const fs = require('fs');
   // Use Electron template naming on macOS
@@ -228,7 +275,62 @@ function createTray(): void {
     }
   });
 
-  // No context menu - use only click behavior
+  // Right-click context menu with timer controls and quit option
+  tray.on('right-click', () => {
+    const timers = timerService.getAllTimers();
+    const activeTimers = timerService.getActiveTimers();
+    
+    const menuItems: Electron.MenuItemConstructorOptions[] = [];
+    
+    // Add timer menu items
+    if (timers.length > 0) {
+      timers.forEach((timer) => {
+        const isActive = timer.name in activeTimers;
+        menuItems.push({
+          label: `${isActive ? '⏸️ Stop' : '▶️ Start'} ${timer.name}`,
+          click: async () => {
+            try {
+              await timerService.startStopTimer(timer.name);
+              // Notify all windows of data change
+              BrowserWindow.getAllWindows().forEach(window => {
+                if (!window.isDestroyed()) {
+                  window.webContents.send('data-changed');
+                }
+              });
+            } catch (error) {
+              console.error('Error starting/stopping timer:', error);
+            }
+          }
+        });
+      });
+      menuItems.push({ type: 'separator' });
+    }
+    
+    // Add settings option
+    menuItems.push({
+      label: '⚙️ Settings',
+      click: () => {
+        createSettingsWindow();
+        // Hide the main window when settings opens
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+          hideMainWindowWithAnimation();
+        }
+      }
+    });
+    
+    menuItems.push({ type: 'separator' });
+    
+    // Add quit option
+    menuItems.push({
+      label: 'Quit',
+      click: () => {
+        app.quit();
+      }
+    });
+    
+    const contextMenu = Menu.buildFromTemplate(menuItems);
+    tray?.popUpContextMenu(contextMenu);
+  });
 }
 
 function createMainWindow(trayBounds?: Electron.Rectangle): void {
@@ -572,7 +674,9 @@ ipcMain.handle('get-all-timers', async () => {
 });
 
 ipcMain.handle('get-active-timers', async () => {
-  return timerService.getActiveTimers();
+  const activeTimers = timerService.getActiveTimers();
+  console.log(`📊 get-active-timers: activeTimers=`, activeTimers);
+  return activeTimers;
 });
 
 ipcMain.handle('add-timer', async (event, name: string, calendarId: string) => {
@@ -907,13 +1011,19 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   // Clean up services
   cleanupServices();
-  
+
   // Clean up storage watcher
   if (storageWatcher) {
     storageWatcher.close();
     storageWatcher = null;
   }
-  
+
+  // Clean up MCP polling
+  if (mcpPollInterval) {
+    clearInterval(mcpPollInterval);
+    mcpPollInterval = null;
+  }
+
   // Clean up tray
   if (tray && !tray.isDestroyed()) {
     if (tray.clickTimeout) {

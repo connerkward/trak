@@ -194,6 +194,91 @@ body {
 .setting-label {
   font-size: 13px;
   color: var(--text-color);
+  font-weight: 500;
+}
+
+.setting-info {
+  flex: 1;
+}
+
+.setting-description {
+  font-size: 11px;
+  color: var(--secondary-text-color);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.setting-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Status indicator with colored dot */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--list-bg);
+  border: 1px solid var(--border-color);
+}
+
+.status-indicator .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.status-indicator.on .status-dot {
+  background: #34C759;
+  box-shadow: 0 0 4px rgba(52, 199, 89, 0.5);
+}
+
+.status-indicator.off .status-dot {
+  background: #8E8E93;
+}
+
+/* Icon button for refresh */
+.icon-btn {
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: var(--hover-color);
+}
+
+.icon-btn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Small button variant */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-sm svg {
+  fill: currentColor;
 }
 
 .calendar-item {

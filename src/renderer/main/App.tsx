@@ -133,10 +133,10 @@ const App: React.FC = () => {
 
   const loadData = async () => {
     try {
-      console.log('window.api availability:', !!window.api);
-      console.log('window.api methods:', window.api ? Object.keys(window.api) : 'N/A');
+      console.log('🔄 [loadData] Starting data reload...');
+      console.log('   window.api availability:', !!window.api);
       if (!window.api) {
-        console.error('window.api is not defined. Cannot load data.');
+        console.error('   ❌ window.api is not defined. Cannot load data.');
         return;
       }
       const [calendarsData, timersData, activeTimersData] = await Promise.all([
@@ -144,22 +144,22 @@ const App: React.FC = () => {
         window.api.getAllTimers(),
         window.api.getActiveTimers()
       ]);
-      
-      console.log('📊 Load data results:', {
+
+      console.log('📊 [loadData] Data loaded from backend:', {
         calendars: calendarsData?.length || 0,
         timers: timersData?.length || 0,
         activeTimers: Object.keys(activeTimersData || {}).length,
-        calendarsData,
-        timersData,
-        activeTimersData
+        activeTimersDetails: activeTimersData
       });
-      
+
       setCalendars(calendarsData);
       setTimers(timersData);
       setActiveTimers(activeTimersData);
       setIsAuthenticated(calendarsData.length > 0);
+
+      console.log('✅ [loadData] State updated with new data');
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('❌ [loadData] Failed to load data:', error);
     }
   };
 

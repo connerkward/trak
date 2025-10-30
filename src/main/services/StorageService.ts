@@ -44,10 +44,14 @@ export class SimpleStore {
   }
 
   get<T = unknown>(key: string, defaultValue?: T): T {
+    // Always reload from disk to get latest changes (e.g. from MCP server)
+    this.load();
     return (this.data[key] !== undefined ? this.data[key] : defaultValue) as T;
   }
 
   set(key: string, value: unknown): void {
+    // Reload to merge with any concurrent changes
+    this.load();
     this.data[key] = value;
     this.save();
   }

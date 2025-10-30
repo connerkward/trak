@@ -1,32 +1,47 @@
 #!/usr/bin/env node
-// Realtime MCP test: verify MCP writes signals for app to consume
+// Realtime MCP test: verify HTTP polling detects MCP changes instantly
 
 const { spawn } = require('child_process');
 const path = require('path');
-const fs = require('fs');
-const os = require('os');
+const http = require('http');
 
 const mcpServerPath = path.join(__dirname, 'out', 'main', 'mcp-server.js');
-const signalFile = path.join(os.homedir(), '.config', 'dingo-track', 'mcp-signal.json');
+const HTTP_PORT = 3123;
 
-function waitForSignal(timeoutMs = 3000) {
+// HTTP GET helper
+function httpGet(url) {
+  return new Promise((resolve, reject) => {
+    http.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve(data);
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
+function waitForTimestampChange(lastTimestamp, timeoutMs = 3000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       try {
-        if (fs.existsSync(signalFile)) {
-          const content = fs.readFileSync(signalFile, 'utf-8');
+        const response = await httpGet(`http://localhost:${HTTP_PORT}/last-change`);
+        if (response.timestamp > lastTimestamp) {
           clearInterval(interval);
-          resolve(content);
+          resolve({ timestamp: response.timestamp, latency: Date.now() - start });
         } else if (Date.now() - start > timeoutMs) {
           clearInterval(interval);
-          reject(new Error('Signal file not found within timeout'));
+          reject(new Error('Timestamp did not change within timeout'));
         }
       } catch (e) {
-        clearInterval(interval);
-        reject(e);
+        // HTTP server might not be ready yet
       }
-    }, 100);
+    }, 50); // Poll every 50ms for accurate latency measurement
   });
 }
 
@@ -50,7 +65,17 @@ async function main() {
   server.stdout.on('data', d => process.stdout.write(String(d)));
 
   // Give server time to boot
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 1000));
+
+  // Check HTTP server is running
+  console.log('🔍 Checking HTTP server...');
+  const health = await httpGet(`http://localhost:${HTTP_PORT}/health`);
+  console.log('✅ HTTP server running:', health);
+
+  // Get initial timestamp
+  const initial = await httpGet(`http://localhost:${HTTP_PORT}/last-change`);
+  let lastTimestamp = initial.timestamp;
+  console.log('📊 Initial timestamp:', lastTimestamp, '\n');
 
   console.log('📤 initialize');
   send(server, 'initialize', {
@@ -66,32 +91,51 @@ async function main() {
 
   await new Promise(r => setTimeout(r, 200));
 
-  // Clean any previous signal
-  try { if (fs.existsSync(signalFile)) fs.unlinkSync(signalFile); } catch {}
-
   const timerName = 'ProofTimer_' + Math.floor(Math.random() * 10000);
-  console.log('📤 tools/call add_timer', timerName);
+
+  // Test 1: Add timer
+  console.log('📝 Test 1: add_timer "' + timerName + '"');
   send(server, 'tools/call', { name: 'add_timer', arguments: { name: timerName, calendarId: 'cal_test' } });
 
-  const addSignal = await waitForSignal(4000);
-  console.log('✅ Signal after add_timer:\n' + addSignal + '\n');
+  const addResult = await waitForTimestampChange(lastTimestamp, 2000);
+  console.log('✅ Timestamp changed after add_timer!');
+  console.log('   Latency:', addResult.latency + 'ms');
+  console.log('   New timestamp:', addResult.timestamp, '\n');
+  lastTimestamp = addResult.timestamp;
 
-  // Remove read signal to detect next one
-  try { if (fs.existsSync(signalFile)) fs.unlinkSync(signalFile); } catch {}
-
-  console.log('📤 tools/call start_stop_timer (start)');
+  // Test 2: Start timer
+  console.log('📝 Test 2: start_stop_timer (start) "' + timerName + '"');
   send(server, 'tools/call', { name: 'start_stop_timer', arguments: { name: timerName } });
 
-  const startSignal = await waitForSignal(4000);
-  console.log('✅ Signal after start_stop_timer(start):\n' + startSignal + '\n');
+  const startResult = await waitForTimestampChange(lastTimestamp, 2000);
+  console.log('✅ Timestamp changed after start_stop_timer!');
+  console.log('   Latency:', startResult.latency + 'ms');
+  console.log('   New timestamp:', startResult.timestamp, '\n');
+  lastTimestamp = startResult.timestamp;
 
-  try { if (fs.existsSync(signalFile)) fs.unlinkSync(signalFile); } catch {}
-
-  console.log('📤 tools/call start_stop_timer (stop)');
+  // Test 3: Stop timer
+  console.log('📝 Test 3: start_stop_timer (stop) "' + timerName + '"');
   send(server, 'tools/call', { name: 'start_stop_timer', arguments: { name: timerName } });
 
-  const stopSignal = await waitForSignal(4000);
-  console.log('✅ Signal after start_stop_timer(stop):\n' + stopSignal + '\n');
+  const stopResult = await waitForTimestampChange(lastTimestamp, 2000);
+  console.log('✅ Timestamp changed after start_stop_timer!');
+  console.log('   Latency:', stopResult.latency + 'ms');
+  console.log('   New timestamp:', stopResult.timestamp, '\n');
+  lastTimestamp = stopResult.timestamp;
+
+  // Test 4: Delete timer
+  console.log('📝 Test 4: delete_timer "' + timerName + '"');
+  send(server, 'tools/call', { name: 'delete_timer', arguments: { name: timerName } });
+
+  const deleteResult = await waitForTimestampChange(lastTimestamp, 2000);
+  console.log('✅ Timestamp changed after delete_timer!');
+  console.log('   Latency:', deleteResult.latency + 'ms');
+  console.log('   New timestamp:', deleteResult.timestamp, '\n');
+
+  console.log('🎉 All tests passed!');
+  console.log('📊 Summary:');
+  console.log('   Average latency:', Math.round((addResult.latency + startResult.latency + stopResult.latency + deleteResult.latency) / 4) + 'ms');
+  console.log('   Expected: <500ms (polling interval)');
 
   server.kill();
 }

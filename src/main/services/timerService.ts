@@ -17,10 +17,10 @@ export class TimerService {
 
   setCurrentUser(userId: string | null): void {
     this.currentUserId = userId;
-    
+
     // Clear active timers when switching users
     this.activeTimers.clear();
-    
+
     if (userId) {
       // Load active timers for the current user
       const savedActiveTimers = this.store.get(`activeTimers_${userId}`, {}) as Record<string, string>;
@@ -31,6 +31,29 @@ export class TimerService {
         });
       }
     }
+  }
+
+  // Reload active timers from storage (called when MCP makes changes)
+  reloadActiveTimers(): void {
+    if (!this.currentUserId) return;
+
+    console.log('🔄 [TimerService] Reloading activeTimers from storage...');
+
+    // Clear current in-memory state
+    this.activeTimers.clear();
+
+    // Reload from storage
+    const savedActiveTimers = this.store.get(`activeTimers_${this.currentUserId}`, {}) as Record<string, string>;
+    console.log(`   Found ${Object.keys(savedActiveTimers).length} active timer(s) in storage:`, savedActiveTimers);
+
+    for (const [name, startTimeString] of Object.entries(savedActiveTimers)) {
+      this.activeTimers.set(name, {
+        name,
+        startTime: new Date(startTimeString)
+      });
+    }
+
+    console.log(`   ✅ Reloaded ${this.activeTimers.size} active timer(s) into memory`);
   }
 
   getCurrentUserId(): string | null {

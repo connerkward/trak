@@ -27,6 +27,7 @@ export interface ElectronAPI {
   setOpenAtLogin: (enabled: boolean) => Promise<boolean>;
   getDockIconVisible: () => Promise<boolean>;
   setDockIconVisible: (visible: boolean) => Promise<boolean>;
+  openLoginItems: () => Promise<void>;
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => void;
@@ -63,6 +64,7 @@ const electronAPI: ElectronAPI = {
   setOpenAtLogin: (enabled: boolean) => ipcRenderer.invoke('set-open-at-login', enabled),
   getDockIconVisible: () => ipcRenderer.invoke('get-dock-icon-visible'),
   setDockIconVisible: (visible: boolean) => ipcRenderer.invoke('set-dock-icon-visible', visible),
+  openLoginItems: () => ipcRenderer.invoke('open-login-items'),
   
   // Event listeners
   onDataChanged: (callback: (event: IpcRendererEvent) => void) => {

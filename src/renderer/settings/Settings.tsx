@@ -36,10 +36,12 @@ const Settings: React.FC = () => {
         console.log('window.api not available yet, skipping loadData');
         return;
       }
+      console.log('[Settings] Loading data...');
       const [calendarsData, timersData] = await Promise.all([
         window.api.getCalendars(),
         window.api.getAllTimers()
       ]);
+      console.log('[Settings] Loaded timers:', timersData.length, timersData);
       setCalendars(calendarsData);
       setTimers(timersData);
       setIsAuthenticated(calendarsData.length > 0);
@@ -77,7 +79,17 @@ const Settings: React.FC = () => {
     // Load dock icon state (macOS)
     if (window.api && window.api.getDockIconVisible) {
       window.api.getDockIconVisible()
-        .then((val) => setDockIconVisible(val))
+        .then(async (val) => {
+          // Default to ON; if currently off, try enabling once on first load
+          if (val === false && window.api.setDockIconVisible) {
+            try {
+              const newVal = await window.api.setDockIconVisible(true);
+              setDockIconVisible(newVal);
+              return;
+            } catch {}
+          }
+          setDockIconVisible(val ?? true);
+        })
         .catch(() => setDockIconVisible(true));
     }
 
@@ -105,15 +117,21 @@ const Settings: React.FC = () => {
     }) : null;
 
     // Listen for data changes from other windows
-    const dataChangedUnsubscribe = window.api && window.api.onDataChanged ? window.api.onDataChanged(() => {
+    const dataChangedCallback = () => {
       console.log('📡 Data changed event received in Settings UI - refreshing');
       loadData();
-    }) : null;
+    };
+
+    if (window.api && window.api.onDataChanged) {
+      window.api.onDataChanged(dataChangedCallback);
+    }
 
     return () => {
       if (oauthUnsubscribe) oauthUnsubscribe();
       if (logoutUnsubscribe) logoutUnsubscribe();
-      if (dataChangedUnsubscribe) dataChangedUnsubscribe();
+      if (window.api && window.api.removeDataChangedListener) {
+        window.api.removeDataChangedListener(dataChangedCallback);
+      }
     };
   }, []);
 
@@ -421,7 +439,10 @@ const Settings: React.FC = () => {
           </div>
 
           <div ref={timersRef} className="section" id="timers">
-            <h2>Timers</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ margin: 0 }}>Timers</h2>
+              <button className="btn btn-secondary btn-sm" onClick={() => { console.log('[Settings] Manual refresh clicked'); loadData(); }}>🔄 Refresh</button>
+            </div>
             <div className="timer-list">
               {timers.length === 0 ? (
                 <div className="empty-state">
@@ -478,8 +499,19 @@ const Settings: React.FC = () => {
       <div ref={generalRef} className="section" id="general">
         <h2>General</h2>
         <div className="setting-row">
-          <div className="setting-label">Open on startup</div>
-          <div className={`toggle-switch ${openAtLogin ? 'active' : ''}`} onClick={(e) => handleToggleOpenAtLogin({ target: { checked: !openAtLogin } } as any)} />
+          <div className="setting-info">
+            <div className="setting-label">Open on startup</div>
+            <div className="setting-description">Launch automatically when you log in</div>
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => window.api?.openLoginItems?.()}
+          >
+            System Settings
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
         </div>
         <div className="setting-row">
           <div className="setting-label">Show Dock icon (macOS)</div>

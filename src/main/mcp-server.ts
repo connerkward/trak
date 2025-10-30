@@ -10,6 +10,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { homedir } from 'os';
 import { spawn } from 'child_process';
+import express from 'express';
+import cors from 'cors';
 
 // Import services and types
 import { Timer, Calendar } from '../shared/types/index.js';
@@ -432,6 +434,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         if (!targetCalendarId) throw new Error('calendarId or calendarName is required');
         addTimer(name, targetCalendarId);
+        notifyChange(`add_timer: "${name}"`);
         return {
           content: [
             {
@@ -445,6 +448,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'delete_timer': {
         const { name } = args as { name: string };
         deleteTimer(name);
+        notifyChange(`delete_timer: "${name}"`);
         return {
           content: [
             {
@@ -520,6 +524,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'start_stop_timer': {
         const { name } = args as { name: string };
         const result = startStopTimer(name);
+        notifyChange(`start_stop_timer: "${name}" -> ${result.action}`);
         return {
           content: [
             {
@@ -556,7 +561,43 @@ function formatDuration(ms: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// Start the server
+// HTTP server for bidirectional communication with Electron app (standard MCP pattern)
+const expressApp = express();
+expressApp.use(cors());
+expressApp.use(express.json());
+
+// Health check endpoint
+expressApp.get('/health', (req, res) => {
+  res.json({ status: 'ok', server: 'dingo-track-mcp' });
+});
+
+// Track last change timestamp for polling
+let lastChangeTimestamp = Date.now();
+
+// Helper function to notify of changes (call after any data modification)
+function notifyChange(operation: string): void {
+  lastChangeTimestamp = Date.now();
+  console.error(`[MCP HTTP] ${operation} at ${new Date(lastChangeTimestamp).toISOString()}`);
+}
+
+// Notify endpoint - called by Electron app to trigger data reload
+expressApp.post('/notify-change', (req, res) => {
+  notifyChange('external notification received');
+  res.json({ success: true, timestamp: lastChangeTimestamp });
+});
+
+// Poll endpoint - Electron app polls this to check for changes
+expressApp.get('/last-change', (req, res) => {
+  res.json({ timestamp: lastChangeTimestamp });
+});
+
+// Start HTTP server
+const HTTP_PORT = 3123; // Non-standard port to avoid conflicts
+expressApp.listen(HTTP_PORT, () => {
+  console.error(`[MCP HTTP] Server listening on port ${HTTP_PORT}`);
+});
+
+// Start the MCP stdio server
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
