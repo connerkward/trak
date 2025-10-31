@@ -322,9 +322,69 @@ export class GoogleCalendarServiceSimple {
         authCodeReject = rej;
       });
 
+      // Track active connections to ensure we don't close while Safari is still using them
+      const activeConnections = new Set<http.IncomingMessage>();
+      let serverCloseTimer: NodeJS.Timeout | null = null;
+
+      const closeServerSafely = () => {
+        if (serverCloseTimer) {
+          clearTimeout(serverCloseTimer);
+          serverCloseTimer = null;
+        }
+        
+        // Wait for all connections to finish, but timeout after 10 seconds
+        const forceClose = setTimeout(() => {
+          activeConnections.forEach(conn => {
+            if (!conn.destroyed) {
+              conn.destroy();
+            }
+          });
+          server.close();
+          console.log('OAuth loopback server closed (force close after timeout)');
+        }, 10000);
+
+        // If no active connections, close immediately
+        if (activeConnections.size === 0) {
+          clearTimeout(forceClose);
+          server.close();
+          console.log('OAuth loopback server closed');
+        } else {
+          // Wait for connections to finish naturally
+          server.close(() => {
+            clearTimeout(forceClose);
+            console.log('OAuth loopback server closed (all connections finished)');
+          });
+        }
+      };
+
       const server = http.createServer(async (req, res) => {
         if (!req.url) return;
+        
+        // Track this connection
+        activeConnections.add(req);
+        req.on('close', () => {
+          activeConnections.delete(req);
+        });
+
         const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+        // Handle favicon requests gracefully
+        if (parsedUrl.pathname === '/favicon.ico') {
+          try {
+            const faviconPath = path.join(__dirname, '../../assets/app-icon.png');
+            const favicon = fs.readFileSync(faviconPath);
+            res.writeHead(200, { 
+              'Content-Type': 'image/png',
+              'Cache-Control': 'public, max-age=3600'
+            });
+            res.end(favicon);
+          } catch (error) {
+            // If favicon file not found, return 204 No Content
+            res.writeHead(204);
+            res.end();
+          }
+          return;
+        }
 
         if (parsedUrl.pathname === '/callback') {
           const authCode = parsedUrl.searchParams.get('code');
@@ -344,13 +404,14 @@ export class GoogleCalendarServiceSimple {
                   </head>
                   <body>Redirecting to Dingo Track...</body>
                 </html>
-              `);
-              // Don't resolve here - let protocol handler process it
-              // Close server after redirect (protocol handler will process via setAuthCode)
-              setTimeout(() => {
-                server.close();
-                console.log('OAuth loopback server closed (redirected to custom URL scheme)');
-              }, 1000);
+              `, () => {
+                // Response finished, resolve auth code
+                if (authCode) authCodeResolve(authCode);
+                // Close server after redirect (protocol handler will process via setAuthCode)
+                setTimeout(() => {
+                  closeServerSafely();
+                }, 1000);
+              });
             } else {
               // Success page (on-brand styling)
               res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -379,8 +440,14 @@ export class GoogleCalendarServiceSimple {
                     <script>setTimeout(() => window.close(), 1600);</script>
                   </body>
                 </html>
-              `);
-              if (authCode) authCodeResolve(authCode);
+              `, () => {
+                // Response fully sent - now safe to resolve and start close timer
+                if (authCode) authCodeResolve(authCode);
+                // Start timer for server close after response is confirmed sent
+                serverCloseTimer = setTimeout(() => {
+                  closeServerSafely();
+                }, 5000); // Increased to 5 seconds to give Safari time to finish loading
+              });
             }
           } else if (error) {
             const errorMessage = error || 'Unknown error';
@@ -397,10 +464,11 @@ export class GoogleCalendarServiceSimple {
                   </head>
                   <body>Redirecting...</body>
                 </html>
-              `);
-              setTimeout(() => {
-                server.close();
-              }, 1000);
+              `, () => {
+                setTimeout(() => {
+                  closeServerSafely();
+                }, 1000);
+              });
             } else {
               // Error page (on-brand styling)
               res.writeHead(400, { 'Content-Type': 'text/html' });
@@ -420,27 +488,50 @@ export class GoogleCalendarServiceSimple {
                     </div>
                   </body>
                 </html>
-              `);
-              authCodeReject(new Error(`OAuth error: ${errorMessage}`));
+              `, () => {
+                authCodeReject(new Error(`OAuth error: ${errorMessage}`));
+                setTimeout(() => {
+                  closeServerSafely();
+                }, 3000);
+              });
             }
           }
+        } else {
+          // Unknown path - return 404
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found');
         }
       });
 
       // Listen on random available port (0 = let OS choose)
+      // The listen callback fires when the server is bound and ready
       server.listen(0, '127.0.0.1', () => {
         const address = server.address();
         if (address && typeof address === 'object') {
           const port = address.port;
+          if (!port || port <= 0) {
+            reject(new Error('Invalid port assigned to OAuth server'));
+            return;
+          }
           console.log(`OAuth loopback server listening on http://127.0.0.1:${port}`);
+          // Server is ready - resolve immediately since listen callback indicates it's bound
           resolve({ server, port, authCodePromise });
         } else {
           reject(new Error('Failed to get server address'));
         }
       });
 
-      server.on('error', (error) => {
-        reject(error);
+      server.on('error', (error: NodeJS.ErrnoException) => {
+        let errorMessage = `Failed to start OAuth server: ${error.message}`;
+        if (error.code === 'EADDRINUSE') {
+          errorMessage = 'OAuth server port is already in use. Please try again.';
+        } else if (error.code === 'EACCES') {
+          errorMessage = 'OAuth server requires network permissions. Please check app permissions.';
+        } else if (error.code === 'EADDRNOTAVAIL') {
+          errorMessage = 'OAuth server cannot bind to localhost. This may be due to sandbox restrictions.';
+        }
+        console.error(`OAuth server error (${error.code}):`, errorMessage);
+        reject(new Error(errorMessage));
       });
     });
   }
@@ -448,54 +539,65 @@ export class GoogleCalendarServiceSimple {
   // Authenticate - starts OAuth flow with loopback server
   // Note: Google requires localhost, but we can redirect to custom URL scheme after callback
   async authenticate(): Promise<{ authUrl: string }> {
-    // Always use loopback server (Google requires localhost)
-    // If custom URL scheme is enabled, we'll redirect to it after receiving callback
-    const { server, port, authCodePromise } = await this.startLoopbackServer();
-    this.redirectPort = port;
-
-    // Generate auth URL with the dynamic port (always localhost for Google)
-    const authUrl = this.getAuthUrl(port);
-    
-    if (this.useCustomUrlScheme) {
-      console.log('🔗 Using custom URL scheme redirect after localhost callback');
-    }
-
-    // Handle the auth code in the background
-    authCodePromise.then(async (code) => {
-      try {
-        console.log('📝 Exchanging auth code for tokens...');
-        const redirectUri = `http://127.0.0.1:${port}/callback`;
-        const tokens = await this.exchangeCodeForTokens(code, redirectUri);
-        this.storeTokens(tokens);
-
-        // Get the actual user ID
-        const userId = await this.getUserId();
-        this.setCurrentUser(userId);
-        console.log('📝 Tokens stored, current user set to:', userId);
-
-        // Wait a tick before callback
-        await new Promise(resolve => setImmediate(resolve));
-
-        // Notify success
-        if (this.authSuccessCallback) {
-          console.log('📝 Calling auth success callback');
-          this.authSuccessCallback();
-        }
-      } catch (error) {
-        console.error('Error during OAuth token exchange:', error);
-      } finally {
-        // Close the server after a brief delay
-        setTimeout(() => {
-          server.close();
-          console.log('OAuth loopback server closed');
-        }, 3000);
+    try {
+      // Always use loopback server (Google requires localhost)
+      // If custom URL scheme is enabled, we'll redirect to it after receiving callback
+      const { server, port, authCodePromise } = await this.startLoopbackServer();
+      
+      // Ensure port is valid before proceeding
+      if (!port || port <= 0) {
+        throw new Error('Invalid port assigned to OAuth server');
       }
-    }).catch((error) => {
-      console.error('OAuth error:', error);
-      server.close();
-    });
+      
+      this.redirectPort = port;
 
-    return { authUrl };
+      // Verify server is actually listening before generating URL
+      // Wait a brief moment to ensure server is fully ready
+      await new Promise(resolve => setImmediate(resolve));
+
+      // Generate auth URL with the dynamic port (always localhost for Google)
+      const authUrl = this.getAuthUrl(port);
+      
+      if (this.useCustomUrlScheme) {
+        console.log('🔗 Using custom URL scheme redirect after localhost callback');
+      }
+
+      // Handle the auth code in the background
+      authCodePromise.then(async (code) => {
+        try {
+          console.log('📝 Exchanging auth code for tokens...');
+          const redirectUri = `http://127.0.0.1:${port}/callback`;
+          const tokens = await this.exchangeCodeForTokens(code, redirectUri);
+          this.storeTokens(tokens);
+
+          // Get the actual user ID
+          const userId = await this.getUserId();
+          this.setCurrentUser(userId);
+          console.log('📝 Tokens stored, current user set to:', userId);
+
+          // Wait a tick before callback
+          await new Promise(resolve => setImmediate(resolve));
+
+          // Notify success
+          if (this.authSuccessCallback) {
+            console.log('📝 Calling auth success callback');
+            this.authSuccessCallback();
+          }
+        } catch (error) {
+          console.error('Error during OAuth token exchange:', error);
+          // Server close is handled in the response callback, no need to close here
+        }
+      }).catch((error) => {
+        console.error('OAuth error:', error);
+        // Server close is handled in the response callback, no need to close here
+      });
+
+      return { authUrl };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Failed to start OAuth server:', errorMessage);
+      throw new Error(`OAuth initialization failed: ${errorMessage}. This may be due to network permissions or sandbox restrictions.`);
+    }
   }
 
   // Set auth code from OAuth callback (for manual flow if needed)

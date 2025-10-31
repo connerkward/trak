@@ -554,17 +554,23 @@ ipcMain.handle('start-auth', async (event) => {
       } catch {}
 
       // Open the auth URL in the default browser
+      // Server is confirmed ready before this point
       await shell.openExternal(result.authUrl);
       
       // The local server will handle the callback automatically
       // No need to wait, just return success
       return { success: true };
     } else {
-      throw new Error('Authentication failed');
+      throw new Error('Authentication failed: No auth URL generated');
     }
   } catch (error) {
-    console.error('Authentication error:', error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Authentication error:', errorMessage);
+    // Return error details to renderer for user-friendly display
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
   }
 });
 
