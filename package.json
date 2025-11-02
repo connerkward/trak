@@ -10,6 +10,7 @@
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:mac:dev": "npm run build && electron-builder --mac --config.afterSign=scripts/notarize-skip.js --config.extraMetadata.devMode=true",
     "dist:mas": "pnpm build && npx electron-builder --mac mas --universal",
+    "dev:landing": "cd landing-page && vite",
     "build:landing": "cd landing-page && NODE_ENV=production vite build && cd .. && npm run copy-landing-assets",
     "copy-landing-assets": "cp landing-page/public/header-logo.png docs/ && cp landing-page/public/app-icon.png docs/assets/",
     "convert-icons": "node scripts/convert-icons.js",

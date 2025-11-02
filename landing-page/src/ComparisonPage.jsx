@@ -1,88 +1,86 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { downloadDMG } from './utils/downloadUtils';
 import Header from './Header.jsx';
 import Footer from './Footer.jsx';
 
 const ComparisonPage = () => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    
+    try {
+      await downloadDMG();
+      
+      // Simulate progress for better UX
+      const interval = setInterval(() => {
+        setDownloadProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsDownloading(false);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 200);
+      
+      setTimeout(() => {
+        clearInterval(interval);
+        setIsDownloading(false);
+        setDownloadProgress(100);
+        setTimeout(() => setDownloadProgress(0), 2000);
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      setIsDownloading(false);
+      setDownloadProgress(0);
+      alert(error.message || 'Download failed. Please try again.');
+    }
+  };
+
   const comparisons = [
     {
-      category: 'AI Integration',
-      trak: 'Native MCP (Model Context Protocol) integration built-in',
-      toggl: 'No native AI support - requires third-party plugins and extensions',
+      category: '🤖 AI Integration',
+      trak: '✅ Native MCP built-in',
+      toggl: '❌ None (need plugins)',
       trakWins: true
     },
     {
-      category: 'Calendar Integration',
-      trak: 'Direct Google Calendar sync - track time against calendar events',
-      toggl: 'Calendar integrations available but requires manual setup',
-      trakWins: false
+      category: '📅 Calendar Sync',
+      trak: '✅ Direct GCal integration',
+      toggl: '⚠️ Manual setup required',
+      trakWins: true
     },
     {
-      category: 'User Interface',
-      trak: 'Minimal menu bar app - zero bloat, instant access',
-      toggl: 'Full-featured web and desktop apps with extensive UI',
-      trakWins: false
+      category: '⚡ Speed & UI',
+      trak: '🚀 Menu bar—instant access',
+      toggl: '🐌 Multiple apps, slow',
+      trakWins: true
     },
     {
-      category: 'Complexity',
-      trak: 'Simple, focused time tracking - start/stop timers quickly',
-      toggl: 'Comprehensive project management, team features, and reporting',
-      trakWins: false
+      category: '💰 Pricing',
+      trak: '🎉 Free forever',
+      toggl: '💸 $9-18/user/month',
+      trakWins: true
     },
     {
-      category: 'Platform',
-      trak: 'macOS native app',
-      toggl: 'Cross-platform (Web, Windows, Mac, iOS, Android, Browser extensions)',
-      trakWins: false
-    },
-    {
-      category: 'Pricing',
-      trak: 'Free',
-      toggl: 'Free plan available (5 users limit), paid plans for advanced features',
-      trakWins: false
-    },
-    {
-      category: 'Team Features',
-      trak: 'Individual use focused',
-      toggl: 'Full team management, permissions, and collaboration tools',
-      trakWins: false
-    },
-    {
-      category: 'Reporting',
-      trak: 'Basic time tracking via Google Calendar',
-      toggl: 'Advanced analytics, detailed reports, profitability tracking, invoicing',
-      trakWins: false
-    },
-    {
-      category: 'Integrations',
-      trak: 'Google Calendar, Native MCP for AI tools',
-      toggl: '100+ integrations (Jira, Asana, Salesforce, Trello, etc.)',
-      trakWins: false
+      category: '🎯 Complexity',
+      trak: '😌 Simple—just track time',
+      toggl: '🤯 Bloated—PM, billing, reports...',
+      trakWins: true
     }
   ];
 
-  const useCases = [
-    {
-      title: 'Choose Trak if you:',
-      items: [
-        'Want simple, personal time tracking',
-        'Use Google Calendar as your primary scheduling tool',
-        'Want AI-powered time tracking without plugins',
-        'Prefer a minimal, menu bar interface',
-        'Work solo and don\'t need team features',
-        'Value native macOS integration'
-      ]
-    },
-    {
-      title: 'Choose Toggl Track if you:',
-      items: [
-        'Need comprehensive team management',
-        'Require detailed reporting and analytics',
-        'Want cross-platform support',
-        'Need invoicing and profitability tracking',
-        'Use multiple project management tools',
-        'Need integrations with 100+ platforms'
-      ]
-    }
+  const reasons = [
+    { emoji: '⏱️', text: 'Just track time' },
+    { emoji: '📆', text: 'Use Google Calendar' },
+    { emoji: '🤖', text: 'Want native AI' },
+    { emoji: '🚀', text: 'Keep it simple' },
+    { emoji: '👤', text: 'Work solo' },
+    { emoji: '🍎', text: 'Love macOS' }
   ];
 
   return (
@@ -91,19 +89,18 @@ const ComparisonPage = () => {
 
       <main className="comparison-content">
         <section className="comparison-hero">
-          <h1>Trak vs Toggl Track</h1>
+          <h1>Simple vs. Bloated</h1>
           <p className="comparison-subtitle">
-            Choose the right time tracking tool for your needs
+            One does time tracking. One does... everything else.
           </p>
         </section>
 
         <section className="comparison-table-section">
-          <h2>Feature Comparison</h2>
           <div className="comparison-table">
             <div className="comparison-header">
-              <div className="comparison-cell category-header">Feature</div>
+              <div className="comparison-cell category-header"></div>
               <div className="comparison-cell product-header">Trak</div>
-              <div className="comparison-cell product-header">Toggl Track</div>
+              <div className="comparison-cell product-header">Toggl</div>
             </div>
 
             {comparisons.map((item, index) => (
@@ -118,40 +115,53 @@ const ComparisonPage = () => {
               </div>
             ))}
           </div>
-        </section>
 
-        <section className="use-cases-section">
-          <h2>Which One Should You Choose?</h2>
-          <div className="use-cases-grid">
-            {useCases.map((useCase, index) => (
-              <div key={index} className="use-case-card">
-                <h3>{useCase.title}</h3>
-                <ul>
-                  {useCase.items.map((item, itemIndex) => (
-                    <li key={itemIndex}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          <div className="reasons-section">
+            <h3><span className="reasons-emoji">✨</span> Choose Trak if you:</h3>
+            <div className="reasons-grid">
+              {reasons.map((reason, index) => (
+                <div key={index} className="reason-item">
+                  <span className="reason-emoji">{reason.emoji}</span>
+                  <span className="reason-text">{reason.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         <section className="comparison-conclusion">
           <div className="conclusion-content">
-            <h2>The Bottom Line</h2>
-            <p>
-              <strong>Trak</strong> is designed for individuals who want a simple, AI-powered time tracker
-              that integrates seamlessly with Google Calendar and lives in your menu bar. With native MCP
-              integration, you get AI capabilities without any third-party plugins.
-            </p>
-            <p>
-              <strong>Toggl Track</strong> is a comprehensive solution for teams and businesses that need
-              advanced features like detailed reporting, invoicing, cross-platform support, and extensive
-              integrations with project management tools.
-            </p>
+            <div className="tldr-grid">
+              <div className="tldr-card trak-card">
+                <div className="tldr-title">Trak</div>
+                <div className="tldr-text">Simple. Fast. Free.</div>
+              </div>
+              <div className="tldr-card toggl-card">
+                <div className="tldr-title">Toggl</div>
+                <div className="tldr-text">Complex. Slow. $$$.</div>
+              </div>
+            </div>
             <div className="cta-section">
-              <a href="/" className="back-home-btn">Back to Home</a>
-              <a href="#download-section" className="cta-btn">Try Trak Free</a>
+              <button 
+                className={`download-btn primary ${isDownloading ? 'downloading' : ''}`}
+                onClick={handleDownload}
+                disabled={isDownloading}
+              >
+                {isDownloading && (
+                  <div className="download-progress">
+                    <div 
+                      className="progress-bar" 
+                      style={{ width: `${downloadProgress}%` }}
+                    ></div>
+                  </div>
+                )}
+                <span className="download-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 842.32007 1000.0001">
+                    <path fill="#fff" d="M824.66636 779.30363c-15.12299 34.93724-33.02368 67.09674-53.7638 96.66374-28.27076 40.3074-51.4182 68.2078-69.25717 83.7012-27.65347 25.4313-57.2822 38.4556-89.00964 39.1963-22.77708 0-50.24539-6.4813-82.21973-19.629-32.07926-13.0861-61.55985-19.5673-88.51583-19.5673-28.27075 0-58.59083 6.4812-91.02193 19.5673-32.48053 13.1477-58.64639 19.9994-78.65196 20.6784-30.42501 1.29623-60.75123-12.0985-91.02193-40.2457-19.32039-16.8514-43.48632-45.7394-72.43607-86.6641-31.060778-43.7024-56.597041-94.37983-76.602609-152.15586C10.740416 658.44309 0 598.01283 0 539.50845c0-67.01648 14.481044-124.8172 43.486336-173.25401C66.28194 327.34823 96.60818 296.6578 134.5638 274.1276c37.95566-22.53016 78.96676-34.01129 123.1321-34.74585 24.16591 0 55.85633 7.47508 95.23784 22.166 39.27042 14.74029 64.48571 22.21538 75.54091 22.21538 8.26518 0 36.27668-8.7405 83.7629-26.16587 44.90607-16.16001 82.80614-22.85118 113.85458-20.21546 84.13326 6.78992 147.34122 39.95559 189.37699 99.70686-75.24463 45.59122-112.46573 109.4473-111.72502 191.36456.67899 63.8067 23.82643 116.90384 69.31888 159.06309 20.61664 19.56727 43.64066 34.69027 69.2571 45.4307-5.55531 16.11062-11.41933 31.54225-17.65372 46.35662zM631.70926 20.0057c0 50.01141-18.27108 96.70693-54.6897 139.92782-43.94932 51.38118-97.10817 81.07162-154.75459 76.38659-.73454-5.99983-1.16045-12.31444-1.16045-18.95003 0-48.01091 20.9006-99.39207 58.01678-141.40314 18.53027-21.27094 42.09746-38.95744 70.67685-53.0663C578.3158 9.00229 605.2903 1.31621 630.65988 0c.74076 6.68575 1.04938 13.37191 1.04938 20.00505z"/>
+                  </svg>
+                </span>
+                {isDownloading ? `Downloading... ${downloadProgress}%` : 'Download Trak'}
+              </button>
             </div>
           </div>
         </section>

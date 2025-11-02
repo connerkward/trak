@@ -3,11 +3,6 @@ import React from 'react';
 const Features = () => {
   const features = [
     {
-      icon: '⏱️',
-      title: 'Menu Bar Access',
-      description: 'Access your timer directly from the Mac menu bar. No need to switch apps.'
-    },
-    {
       icon: '📅',
       title: 'Google Calendar Sync',
       description: 'Seamlessly integrate with Google Calendar to track time against events.'

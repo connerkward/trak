@@ -5,29 +5,38 @@ const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => 
     if (onDownload) {
       onDownload();
     } else {
-      // Fallback: scroll to download section if no handler provided
-      document.getElementById('download-section')?.scrollIntoView({ 
-        behavior: 'smooth' 
-      });
+      // Fallback: scroll to download section or navigate to home
+      const downloadSection = document.getElementById('download-section');
+      if (downloadSection) {
+        downloadSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.location.href = '/#download-section';
+      }
     }
   };
 
   const handleLogoClick = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.location.href = '/';
   };
 
   const handleFeaturesClick = (e) => {
     e.preventDefault();
-    document.querySelector('.features')?.scrollIntoView({ 
-      behavior: 'smooth' 
-    });
+    const featuresSection = document.getElementById('features');
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.location.href = '/#features';
+    }
   };
 
   const handleDownloadNavClick = (e) => {
     e.preventDefault();
-    document.getElementById('download-section')?.scrollIntoView({ 
-      behavior: 'smooth' 
-    });
+    const downloadSection = document.getElementById('download-section');
+    if (downloadSection) {
+      downloadSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.location.href = '/#download-section';
+    }
   };
 
   return (

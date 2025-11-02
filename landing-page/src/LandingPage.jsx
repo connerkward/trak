@@ -37,6 +37,19 @@ const LandingPage = () => {
   }, []);
 
   useEffect(() => {
+    // Handle hash navigation on page load
+    if (window.location.hash) {
+      const targetId = window.location.hash.substring(1);
+      setTimeout(() => {
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, []);
+
+  useEffect(() => {
     const word = ACTIVITY_WORDS[currentWordIndex];
     const speed = isDeleting ? 100 : 150; // Faster when deleting
 
@@ -151,7 +164,7 @@ const LandingPage = () => {
               </div>
               <div className="hero-features">
                 <span className="feature-tag">Google Calendar Sync</span>
-                <span className="feature-tag">Menu Bar Access</span>
+                <span className="feature-tag">Lightning Fast</span>
                 <span className="feature-tag">Native MCP Integration</span>
               </div>
             </div>

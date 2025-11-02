@@ -19,11 +19,40 @@ const Footer = () => {
       });
   }, []);
 
+  const handleFooterLinkClick = (e) => {
+    // Find the closest anchor tag
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+    
+    const href = anchor.getAttribute('href');
+    // Handle anchor links
+    if (href?.startsWith('#')) {
+      // Check if we're on the landing page
+      if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+        // Prevent default and scroll smoothly to section
+        e.preventDefault();
+        const targetId = href.substring(1); // Remove the #
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else {
+        // Navigate to landing page with anchor
+        e.preventDefault();
+        window.location.href = `/${href}`;
+      }
+    }
+  };
+
+  const handleFooterLogoClick = () => {
+    window.location.href = '/';
+  };
+
   return (
     <footer className="footer">
       <div className="footer-content">
         <div className="footer-section">
-          <div className="footer-logo">
+          <div className="footer-logo" onClick={handleFooterLogoClick} style={{ cursor: 'pointer' }}>
                     <img src="/header-logo.png" alt="Dingo Track" className="footer-icon" />
         <span>Dingo Track</span>
           </div>
@@ -34,9 +63,9 @@ const Footer = () => {
 
         <div className="footer-section">
           <h4>Product</h4>
-          <ul>
+          <ul onClick={handleFooterLinkClick}>
             <li><a href="#features">Features</a></li>
-            <li><a href="#download">Download</a></li>
+            <li><a href="#download-section">Download</a></li>
           </ul>
         </div>
 
