@@ -28,17 +28,6 @@ if (isDev) {
 
 dotenv.config({ path: envPath });
 
-// Check if custom URL scheme should be used (development flag)
-const USE_CUSTOM_URL_SCHEME = process.env.USE_CUSTOM_URL_SCHEME === 'true';
-console.log('🔗 Custom URL scheme enabled:', USE_CUSTOM_URL_SCHEME);
-
-// Register custom URL scheme handler BEFORE app is ready
-if (USE_CUSTOM_URL_SCHEME) {
-  if (!app.isDefaultProtocolClient('trak')) {
-    app.setAsDefaultProtocolClient('trak');
-  }
-}
-
 // Debug: Log if environment variables are loaded
 console.log('Environment check:', {
   isDev,
@@ -896,14 +885,6 @@ ipcMain.on('notify-calendar-change', () => {
 // App lifecycle
 app.whenReady().then(async () => {
   try {
-    // Check for custom URL scheme in process.argv (Windows/Linux)
-    if (USE_CUSTOM_URL_SCHEME && process.argv.length > 1) {
-      const protocolUrl = process.argv.find(arg => arg.startsWith('trak://'));
-      if (protocolUrl) {
-        handleCustomUrlScheme(protocolUrl);
-      }
-    }
-
     // Initialize services first (must be after app is ready)
     await initializeServices();
 
@@ -958,53 +939,6 @@ app.whenReady().then(async () => {
   app.quit();
   process.exit(1);
 });
-
-// Handle custom URL scheme (macOS)
-if (USE_CUSTOM_URL_SCHEME) {
-  app.on('open-url', (event, url) => {
-    event.preventDefault();
-    handleCustomUrlScheme(url);
-  });
-}
-
-
-// Function to handle custom URL scheme OAuth callback
-function handleCustomUrlScheme(url: string) {
-  console.log('🔗 Received custom URL scheme:', url);
-  
-  try {
-    const parsedUrl = new URL(url);
-    if (parsedUrl.pathname === '/callback') {
-      const authCode = parsedUrl.searchParams.get('code');
-      const error = parsedUrl.searchParams.get('error');
-      
-      if (authCode) {
-        // Wait for services to be initialized if needed
-        if (googleCalendarService) {
-          console.log('📝 Processing OAuth callback from custom URL scheme');
-          googleCalendarService.setAuthCode(authCode).catch((err) => {
-            console.error('Error processing OAuth callback:', err);
-          });
-        } else {
-          // Services not ready yet, wait for app to be ready
-          app.whenReady().then(async () => {
-            await initializeServices();
-            if (googleCalendarService) {
-              console.log('📝 Processing OAuth callback from custom URL scheme (after init)');
-              googleCalendarService.setAuthCode(authCode).catch((err) => {
-                console.error('Error processing OAuth callback:', err);
-              });
-            }
-          });
-        }
-      } else if (error) {
-        console.error('OAuth error from custom URL scheme:', error);
-      }
-    }
-  } catch (err) {
-    console.error('Error parsing custom URL scheme:', err);
-  }
-}
 
 app.on('window-all-closed', () => {
   // Prevent app from quitting - we're a menu bar app

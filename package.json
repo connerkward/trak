@@ -62,14 +62,6 @@
     ],
     "asar": true,
     "icon": "assets/app-icon.icns",
-    "protocols": [
-      {
-        "name": "trak",
-        "schemes": [
-          "trak"
-        ]
-      }
-    ],
     "mac": {
       "icon": "assets/app-icon.icns",
       "category": "public.app-category.productivity",
