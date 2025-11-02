@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../../src/renderer/main/App.css';
+import './App.css';
 
 const LiveTimer = ({ startTime }) => {
   const [elapsed, setElapsed] = useState('');
