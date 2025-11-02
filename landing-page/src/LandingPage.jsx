@@ -107,6 +107,7 @@ const LandingPage = () => {
         isScrolled={isScrolled} 
         isDownloading={isDownloading}
         downloadProgress={downloadProgress}
+        onDownload={handleHeroDownload}
       />
       
       <main>
@@ -151,7 +152,7 @@ const LandingPage = () => {
               <div className="hero-features">
                 <span className="feature-tag">Google Calendar Sync</span>
                 <span className="feature-tag">Menu Bar Access</span>
-                <span className="feature-tag">Coming Soon: MCP Integration</span>
+                <span className="feature-tag">Native MCP Integration</span>
               </div>
             </div>
             <div className="hero-demo">

@@ -17,11 +17,11 @@ const Features = () => {
       title: 'Lightning Fast',
       description: 'Start and stop timers instantly. No loading screens or delays.'
     },
-    // {
-    //   icon: '🔗',
-    //   title: 'MCP Integration',
-    //   description: 'Future integration with Model Context Protocol for AI-powered time tracking.'
-    // }
+    {
+      icon: '🤖',
+      title: 'Native MCP Integration',
+      description: 'Built-in Model Context Protocol support. No third-party plugins required—AI-powered time tracking is native.'
+    }
   ];
 
   return (

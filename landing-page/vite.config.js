@@ -16,7 +16,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         privacy: resolve(__dirname, 'privacy-policy.html'),
-        terms: resolve(__dirname, 'terms-of-service.html')
+        terms: resolve(__dirname, 'terms-of-service.html'),
+        comparison: resolve(__dirname, 'comparison.html')
       }
     }
   },

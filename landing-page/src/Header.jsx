@@ -2,10 +2,14 @@ import React from 'react';
 
 const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => {
   const handleDownload = () => {
-    // Scroll to download section
-    document.getElementById('download-section')?.scrollIntoView({ 
-      behavior: 'smooth' 
-    });
+    if (onDownload) {
+      onDownload();
+    } else {
+      // Fallback: scroll to download section if no handler provided
+      document.getElementById('download-section')?.scrollIntoView({ 
+        behavior: 'smooth' 
+      });
+    }
   };
 
   const handleLogoClick = () => {
@@ -36,6 +40,7 @@ const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => 
         
         <nav className="nav">
           <a href="#features" className="nav-link" onClick={handleFeaturesClick}>Features</a>
+          <a href="/comparison.html" className="nav-link">vs Toggl</a>
           <a href="#download" className="nav-link" onClick={handleDownloadNavClick}>Download</a>
         </nav>
 

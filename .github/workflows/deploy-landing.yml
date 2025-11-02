@@ -137,6 +137,8 @@ jobs:
           mkdir -p docs/downloads
           cp landing-page/public/*.dmg docs/downloads/ 2>/dev/null || echo "No DMG files found - landing page will deploy without download links"
           cp landing-page/landing-page.png docs/landing-page-screenshot.png || true
+          # Ensure CNAME file is in the root of docs for GitHub Pages custom domain
+          cp landing-page/public/CNAME docs/CNAME 2>/dev/null || echo "CNAME file not found"
           ls -la docs/downloads/ || true
           echo "# Available Downloads" > docs/downloads/README.md
           if ls docs/downloads/*.dmg 1> /dev/null 2>&1; then
