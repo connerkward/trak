@@ -63,6 +63,39 @@ function notifyAllWindows(event: string): void {
   });
 }
 
+// Helper function to open URLs with fallback chain for MAS compatibility
+// 1. Try shell.openExternal (works in dev/DMG builds)
+// 2. Fallback to exec('open') via NSWorkspace (works in MAS with Apple Events entitlement)
+// 3. Final fallback returns URL for manual opening
+async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: string }> {
+  // Try shell.openExternal first (standard Electron API)
+  try {
+    console.log('Attempting to open URL via shell.openExternal...');
+    await shell.openExternal(url);
+    console.log('✓ URL opened via shell.openExternal');
+    return { success: true };
+  } catch (shellError) {
+    console.warn('shell.openExternal failed:', shellError);
+    
+    // Fallback: Use 'open' command (works in MAS sandbox with Apple Events entitlement)
+    try {
+      console.log('Attempting to open URL via NSWorkspace (exec open)...');
+      await new Promise<void>((resolve, reject) => {
+        exec(`open "${url}"`, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+      console.log('✓ URL opened via NSWorkspace');
+      return { success: true };
+    } catch (execError) {
+      console.error('Both shell.openExternal and exec(open) failed:', execError);
+      // Return URL for manual opening
+      return { success: false, url };
+    }
+  }
+}
+
 async function initializeServices() {
   try {
     // Bootstrap all services with dependency injection
@@ -542,13 +575,20 @@ ipcMain.handle('start-auth', async (event) => {
         lastAuthRequestingWindowId = win ? win.id : null;
       } catch {}
 
-      // Open the auth URL in the default browser
-      // Server is confirmed ready before this point
-      await shell.openExternal(result.authUrl);
+      // Try to open the auth URL in the default browser (with fallback chain)
+      const openResult = await openUrlInBrowser(result.authUrl);
       
-      // The local server will handle the callback automatically
-      // No need to wait, just return success
-      return { success: true };
+      if (openResult.success) {
+        // Browser opened successfully
+        return { success: true };
+      } else {
+        // All automatic methods failed - return URL for manual opening
+        return { 
+          success: true,
+          manualUrl: openResult.url,
+          message: 'Please copy and paste this URL into your browser to continue authentication.'
+        };
+      }
     } else {
       throw new Error('Authentication failed: No auth URL generated');
     }
@@ -726,8 +766,12 @@ ipcMain.handle('open-login-items', () => {
     exec('open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"', (err) => {
       if (err) {
         console.error('Failed to open Login Items:', err);
-        // Fallback: try opening System Settings generally
-        shell.openExternal('x-apple.systempreferences:');
+        // Fallback: try opening System Settings generally with MAS-compatible method
+        exec('open "x-apple.systempreferences:"', (fallbackErr) => {
+          if (fallbackErr) {
+            console.error('Failed to open System Settings:', fallbackErr);
+          }
+        });
       }
     });
   } else {
@@ -794,7 +838,10 @@ ipcMain.handle('open-dxt-file', async () => {
 
   if (!result.canceled && result.filePath) {
     fs.writeFileSync(result.filePath, dxtContent);
-    shell.openExternal(`file://${result.filePath}`);
+    // Use MAS-compatible method to open file
+    exec(`open "${result.filePath}"`, (err) => {
+      if (err) console.error('Failed to open .dxt file:', err);
+    });
   }
 });
 
