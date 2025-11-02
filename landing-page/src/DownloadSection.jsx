@@ -6,8 +6,7 @@ const DownloadSection = ({ isDownloading, downloadProgress, onDownload }) => {
 
   useEffect(() => {
     // Fetch build metadata
-    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
-    fetch(`${basePath}/build-info.json`)
+    fetch('/build-info.json')
       .then(res => res.json())
       .then(data => setBuildInfo(data))
       .catch(err => console.log('Build info not available:', err));
@@ -41,7 +40,7 @@ const DownloadSection = ({ isDownloading, downloadProgress, onDownload }) => {
 
         <div className="download-card">
           <div className="download-info">
-            <img src={process.env.NODE_ENV === 'production' ? '/trak/app-icon.png' : '/app-icon.png'} alt="Dingo Track" className="download-app-icon" />
+            <img src="/app-icon.png" alt="Dingo Track" className="download-app-icon" />
             <div className="download-details">
               <h3>Dingo Track</h3>
               <p className="version">Version {buildInfo.version}</p>

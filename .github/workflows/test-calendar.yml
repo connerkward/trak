@@ -1,8 +1,6 @@
 name: Google Calendar Integration Tests
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
   workflow_dispatch:
 

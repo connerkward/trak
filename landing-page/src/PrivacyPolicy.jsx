@@ -5,8 +5,7 @@ const PrivacyPolicy = () => {
   const [buildInfo, setBuildInfo] = useState({ buildTime: null });
 
   useEffect(() => {
-    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
-    fetch(`${basePath}/build-info.json`)
+    fetch('/build-info.json')
       .then(res => res.json())
       .then(data => setBuildInfo(data))
       .catch(err => console.log('Build info not available:', err));
@@ -159,9 +158,9 @@ const PrivacyPolicy = () => {
 
       <footer className="privacy-footer">
         <p>
-          <a href={process.env.NODE_ENV === 'production' ? '/trak/' : '/'}>Back to Home</a>
+          <a href="/">Back to Home</a>
           {' • '}
-          <a href={process.env.NODE_ENV === 'production' ? '/trak/terms-of-service.html' : '/terms-of-service.html'}>Terms of Service</a>
+          <a href="/terms-of-service.html">Terms of Service</a>
         </p>
       </footer>
     </div>

@@ -5,8 +5,7 @@ const Footer = () => {
 
   useEffect(() => {
     // Update year from build info if available
-    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
-    fetch(`${basePath}/build-info.json`)
+    fetch('/build-info.json')
       .then(res => res.json())
       .then(data => {
         if (data.buildTime) {
@@ -25,7 +24,7 @@ const Footer = () => {
       <div className="footer-content">
         <div className="footer-section">
           <div className="footer-logo">
-                    <img src={process.env.NODE_ENV === 'production' ? '/trak/header-logo.png' : '/header-logo.png'} alt="Dingo Track" className="footer-icon" />
+                    <img src="/header-logo.png" alt="Dingo Track" className="footer-icon" />
         <span>Dingo Track</span>
           </div>
           <p className="footer-description">
@@ -44,8 +43,8 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Legal</h4>
           <ul>
-            <li><a href={process.env.NODE_ENV === 'production' ? '/trak/privacy-policy.html' : '/privacy-policy.html'}>Privacy Policy</a></li>
-            <li><a href={process.env.NODE_ENV === 'production' ? '/trak/terms-of-service.html' : '/terms-of-service.html'}>Terms of Service</a></li>
+            <li><a href="/privacy-policy.html">Privacy Policy</a></li>
+            <li><a href="/terms-of-service.html">Terms of Service</a></li>
           </ul>
         </div>
       </div>

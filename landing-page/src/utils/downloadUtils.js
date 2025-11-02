@@ -35,8 +35,7 @@ let cachedVersion = '1.0.1'; // Fallback version
 
 export const getBuildInfo = async () => {
   try {
-    const basePath = process.env.NODE_ENV === 'production' ? '/trak' : '';
-    const response = await fetch(`${basePath}/build-info.json`);
+    const response = await fetch('/build-info.json');
     if (response.ok) {
       const data = await response.json();
       cachedVersion = data.version;
@@ -49,7 +48,7 @@ export const getBuildInfo = async () => {
 };
 
 export const getDMGDownloadUrl = async () => {
-  const baseUrl = process.env.NODE_ENV === 'production' ? '/trak/downloads' : '/downloads';
+  const baseUrl = '/downloads';
   const buildInfo = await getBuildInfo();
   const version = buildInfo.version || cachedVersion;
   

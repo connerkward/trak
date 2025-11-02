@@ -30,7 +30,7 @@ const Header = ({ isScrolled, isDownloading, downloadProgress, onDownload }) => 
     <header className={`header ${isScrolled ? 'scrolled' : ''}`}>
       <div className="header-content">
         <div className="logo" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
-          <img src={process.env.NODE_ENV === 'production' ? '/trak/header-logo.png' : '/header-logo.png'} alt="Dingo Track" className="logo-icon" />
+          <img src="/header-logo.png" alt="Dingo Track" className="logo-icon" />
           <span className="logo-text">Dingo Track</span>
         </div>
         

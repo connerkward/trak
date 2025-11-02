@@ -6,7 +6,7 @@ const TermsOfService = () => {
     <div className="privacy-container">
       <header className="privacy-header">
         <div className="privacy-header-content">
-          <a href={process.env.NODE_ENV === 'production' ? '/trak/' : '/'} className="back-link">
+          <a href="/" className="back-link">
             ← Back to Home
           </a>
           <h1>Terms of Service</h1>
@@ -66,7 +66,7 @@ const TermsOfService = () => {
           <h2>5. Data Storage and Privacy</h2>
           <p>
             All timer data and settings are stored locally on your device. We do not operate servers that collect your personal data. 
-            For more information, please review our <a href={process.env.NODE_ENV === 'production' ? '/trak/privacy-policy.html' : '/privacy-policy.html'}>Privacy Policy</a>.
+            For more information, please review our <a href="/privacy-policy.html">Privacy Policy</a>.
           </p>
         </section>
 
@@ -193,9 +193,9 @@ const TermsOfService = () => {
 
       <footer className="privacy-footer">
         <p>
-          <a href={process.env.NODE_ENV === 'production' ? '/trak/' : '/'}>Back to Home</a>
+          <a href="/">Back to Home</a>
           {' • '}
-          <a href={process.env.NODE_ENV === 'production' ? '/trak/privacy-policy.html' : '/privacy-policy.html'}>Privacy Policy</a>
+          <a href="/privacy-policy.html">Privacy Policy</a>
         </p>
       </footer>
     </div>
