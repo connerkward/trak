@@ -193,6 +193,7 @@ const Settings: React.FC = () => {
 
   const [authCode, setAuthCode] = useState<string>('');
   const [showAuthCode, setShowAuthCode] = useState<boolean>(false);
+  const [manualAuthUrl, setManualAuthUrl] = useState<string>('');
 
   const getCalendarName = (calendarId: string): string => {
     const calendar = calendars.find(c => c.id === calendarId);
@@ -202,7 +203,14 @@ const Settings: React.FC = () => {
   const startAuth = async () => {
     try {
       setIsAuthenticating(true);
-      await window.api.startAuth();
+      const result = await window.api.startAuth();
+      
+      // Check if we got a manual URL (fallback case)
+      if (result.manualUrl) {
+        setManualAuthUrl(result.manualUrl);
+        alert(result.message || 'Please copy the URL below and open it in your browser.');
+      }
+      
       setShowAuthCode(true);
     } catch (error) {
       console.error('Auth error:', error);
@@ -301,10 +309,39 @@ const Settings: React.FC = () => {
             </button>
           ) : (
             <div className="auth-code-section">
-              <p className="help-text">
-                🌐 Your browser should have opened. After completing authorization, 
-                copy the authorization code and paste it below:
-              </p>
+              {manualAuthUrl ? (
+                <>
+                  <p className="help-text">
+                    ⚠️ Could not automatically open browser. Please copy this URL and open it manually:
+                  </p>
+                  <div className="form-group">
+                    <label htmlFor="manualUrl">Authorization URL</label>
+                    <input
+                      type="text"
+                      id="manualUrl"
+                      value={manualAuthUrl}
+                      readOnly
+                      style={{ fontFamily: 'monospace', fontSize: '12px' }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button 
+                      className="btn btn-secondary btn-sm" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(manualAuthUrl);
+                        alert('URL copied to clipboard!');
+                      }}
+                      style={{ marginTop: '8px' }}
+                    >
+                      📋 Copy URL
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="help-text">
+                  🌐 Your browser should have opened. After completing authorization, 
+                  copy the authorization code and paste it below:
+                </p>
+              )}
               <div className="form-group">
                 <label htmlFor="authCode">Authorization Code</label>
                 <input
@@ -329,6 +366,7 @@ const Settings: React.FC = () => {
                   onClick={() => {
                     setShowAuthCode(false);
                     setAuthCode('');
+                    setManualAuthUrl('');
                     setIsAuthenticating(false);
                   }}
                   disabled={isAuthenticating}
