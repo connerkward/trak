@@ -12,6 +12,8 @@ export class GoogleCalendarServiceSimple {
   private clientSecret: string;
   private authSuccessCallback?: () => void;
   private redirectPort: number = 0; // Dynamic port
+  private currentAuthServer: http.Server | null = null; // Reference to current OAuth server for cancellation
+  private currentAuthCodeReject: ((error: Error) => void) | null = null; // Promise rejector for cancellation
 
   constructor() {
     this.store = new SimpleStore({ name: 'dingo-track' });
@@ -318,6 +320,8 @@ export class GoogleCalendarServiceSimple {
       const authCodePromise = new Promise<string>((res, rej) => {
         authCodeResolve = res;
         authCodeReject = rej;
+        // Store rejector so we can cancel the flow
+        this.currentAuthCodeReject = rej;
       });
 
       // Track active connections to ensure we don't close while Safari is still using them
@@ -356,6 +360,8 @@ export class GoogleCalendarServiceSimple {
       };
 
       const server = http.createServer(async (req, res) => {
+        // Store server reference for potential cancellation
+        this.currentAuthServer = server;
         if (!req.url) return;
         
         // Track this connection
@@ -499,6 +505,9 @@ export class GoogleCalendarServiceSimple {
       // If custom URL scheme is enabled, we'll redirect to it after receiving callback
       const { server, port, authCodePromise } = await this.startLoopbackServer();
       
+      // Store server reference for cancellation
+      this.currentAuthServer = server;
+      
       // Ensure port is valid before proceeding
       if (!port || port <= 0) {
         throw new Error('Invalid port assigned to OAuth server');
@@ -515,6 +524,10 @@ export class GoogleCalendarServiceSimple {
 
       // Handle the auth code in the background
       authCodePromise.then(async (code) => {
+        // Clear server reference on success
+        this.currentAuthServer = null;
+        this.currentAuthCodeReject = null;
+        
         try {
           console.log('📝 Exchanging auth code for tokens...');
           const redirectUri = `http://127.0.0.1:${port}/callback`;
@@ -539,7 +552,14 @@ export class GoogleCalendarServiceSimple {
           // Server close is handled in the response callback, no need to close here
         }
       }).catch((error) => {
-        console.error('OAuth error:', error);
+        // Clear server reference on error/cancellation
+        this.currentAuthServer = null;
+        this.currentAuthCodeReject = null;
+        
+        // Only log if not a cancellation
+        if (error.message !== 'OAuth flow cancelled by user') {
+          console.error('OAuth error:', error);
+        }
         // Server close is handled in the response callback, no need to close here
       });
 
@@ -573,6 +593,22 @@ export class GoogleCalendarServiceSimple {
     }
 
     return tokens;
+  }
+
+  // Cancel ongoing OAuth flow
+  cancelAuth(): void {
+    console.log('🛑 Cancelling OAuth flow...');
+    if (this.currentAuthCodeReject) {
+      this.currentAuthCodeReject(new Error('OAuth flow cancelled by user'));
+      this.currentAuthCodeReject = null;
+    }
+    if (this.currentAuthServer) {
+      this.currentAuthServer.close(() => {
+        console.log('OAuth server closed due to cancellation');
+      });
+      this.currentAuthServer = null;
+    }
+    this.redirectPort = 0;
   }
 
   // Logout

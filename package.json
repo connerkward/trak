@@ -8,7 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build && node scripts/inject-credentials.js",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:mac:dev": "npm run build && electron-builder --mac --config.afterSign=scripts/notarize-skip.js",
+    "dist:mac:dev": "npm run build && electron-builder --mac --config.afterSign=scripts/notarize-skip.js --config.extraMetadata.devMode=true",
     "dist:mas": "pnpm build && npx electron-builder --mac mas --universal",
     "build:landing": "cd landing-page && NODE_ENV=production vite build && cd .. && npm run copy-landing-assets",
     "copy-landing-assets": "cp landing-page/public/header-logo.png docs/ && cp landing-page/public/app-icon.png docs/assets/",

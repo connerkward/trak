@@ -5,6 +5,7 @@ export interface ElectronAPI {
   // Calendar methods
   getCalendars: () => Promise<Calendar[]>;
   startAuth: () => Promise<{ success: boolean; authUrl?: string }>;
+  cancelAuth: () => Promise<{ success: boolean }>;
   setAuthCode: (authCode: string) => Promise<boolean>;
   logout: () => Promise<{ success: boolean }>;
   
@@ -42,6 +43,7 @@ const electronAPI: ElectronAPI = {
   // Calendar methods
   getCalendars: () => ipcRenderer.invoke('get-calendars'),
   startAuth: () => ipcRenderer.invoke('start-auth'),
+  cancelAuth: () => ipcRenderer.invoke('cancel-auth'),
   setAuthCode: (authCode: string) => ipcRenderer.invoke('set-auth-code', authCode),
   logout: () => ipcRenderer.invoke('logout'),
   

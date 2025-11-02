@@ -211,11 +211,19 @@ const Settings: React.FC = () => {
         alert(result.message || 'Please copy the URL below and open it in your browser.');
       }
       
-      setShowAuthCode(true);
+      if (result.success) {
+        setShowAuthCode(true);
+      } else {
+        // If auth didn't succeed, reset state
+        setIsAuthenticating(false);
+      }
     } catch (error) {
       console.error('Auth error:', error);
-      alert(`Authentication error: ${error.message}`);
+      alert(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
       setIsAuthenticating(false);
+      setShowAuthCode(false);
+      setAuthCode('');
+      setManualAuthUrl('');
     }
   };
 
@@ -363,13 +371,17 @@ const Settings: React.FC = () => {
                 </button>
                 <button 
                   className="btn btn-secondary" 
-                  onClick={() => {
+                  onClick={async () => {
+                    // Cancel the OAuth flow
+                    if (window.api?.cancelAuth) {
+                      await window.api.cancelAuth();
+                    }
+                    // Reset all auth state
                     setShowAuthCode(false);
                     setAuthCode('');
                     setManualAuthUrl('');
                     setIsAuthenticating(false);
                   }}
-                  disabled={isAuthenticating}
                 >
                   Cancel
                 </button>

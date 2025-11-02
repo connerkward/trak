@@ -1,6 +1,6 @@
 import * as electron from 'electron';
 import type { Tray as TrayType, BrowserWindow as BrowserWindowType } from 'electron';
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen } = electron;
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen, clipboard } = electron;
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -14,8 +14,23 @@ import dotenv from 'dotenv';
 
 // Load .env file - handle both development and production paths
 // Check for electron-vite development or original build system
-const isDev = process.env.NODE_ENV === 'development';
-console.log('🔍 Development mode check:', { isDev, NODE_ENV: process.env.NODE_ENV, __dirname });
+// isDev = true for: pnpm dev (unpackaged) or dist:mac:dev builds (has devMode in package.json)
+// Production builds (dist:mac, dist:mas) will have isDev = false
+let isDev = !app.isPackaged;
+if (app.isPackaged) {
+  try {
+    // In packaged builds, try to read package.json to check for devMode flag
+    const packagePath = path.join(app.getAppPath(), 'package.json');
+    if (fs.existsSync(packagePath)) {
+      const appPackage = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+      isDev = appPackage.devMode === true;
+    }
+  } catch (e) {
+    // If we can't read package.json, assume production
+    console.log('Could not read package.json, assuming production build');
+  }
+}
+console.log('🔍 Development mode check:', { isDev, isPackaged: app.isPackaged, NODE_ENV: process.env.NODE_ENV, __dirname });
 let envPath: string;
 
 if (isDev) {
@@ -54,6 +69,9 @@ let storageWatcher: fs.FSWatcher | null = null;
 let mcpPollInterval: NodeJS.Timeout | null = null;
 let lastKnownMcpTimestamp = 0;
 
+// Dev preference for OAuth flow method (null = auto fallback, only used in dev builds)
+let devOAuthMethod: 'openExternal' | 'execOpen' | 'manual' | null = null;
+
 // Helper function to notify all windows of data changes
 function notifyAllWindows(event: string): void {
   BrowserWindow.getAllWindows().forEach(window => {
@@ -67,7 +85,42 @@ function notifyAllWindows(event: string): void {
 // 1. Try shell.openExternal (works in dev/DMG builds)
 // 2. Fallback to exec('open') via NSWorkspace (works in MAS with Apple Events entitlement)
 // 3. Final fallback returns URL for manual opening
+// If devOAuthMethod is set (dev builds only), use that specific method instead of fallback chain
 async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: string }> {
+  // If dev method is set (only in dev builds), use it directly
+  if (isDev && devOAuthMethod === 'openExternal') {
+    try {
+      console.log('[Dev] Using shell.openExternal method');
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('[Dev] shell.openExternal failed:', error);
+      return { success: false, url };
+    }
+  }
+  
+  if (isDev && devOAuthMethod === 'execOpen') {
+    try {
+      console.log('[Dev] Using exec("open") method');
+      await new Promise<void>((resolve, reject) => {
+        exec(`open "${url}"`, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[Dev] exec("open") failed:', error);
+      return { success: false, url };
+    }
+  }
+  
+  if (isDev && devOAuthMethod === 'manual') {
+    console.log('[Dev] Using manual method - returning URL');
+    return { success: false, url };
+  }
+
+  // Auto fallback chain (production behavior)
   // Try shell.openExternal first (standard Electron API)
   try {
     console.log('Attempting to open URL via shell.openExternal...');
@@ -582,11 +635,19 @@ ipcMain.handle('start-auth', async (event) => {
         // Browser opened successfully
         return { success: true };
       } else {
-        // All automatic methods failed - return URL for manual opening
+        // All automatic methods failed - copy URL to clipboard for manual opening
+        if (openResult.url) {
+          try {
+            clipboard.writeText(openResult.url);
+            console.log('✓ URL copied to clipboard');
+          } catch (clipboardError) {
+            console.warn('Failed to copy to clipboard:', clipboardError);
+          }
+        }
         return { 
           success: true,
           manualUrl: openResult.url,
-          message: 'Please copy and paste this URL into your browser to continue authentication.'
+          message: 'URL copied to clipboard! Please paste it into your browser to continue authentication.'
         };
       }
     } else {
@@ -600,6 +661,16 @@ ipcMain.handle('start-auth', async (event) => {
       success: false, 
       error: errorMessage 
     };
+  }
+});
+
+ipcMain.handle('cancel-auth', async () => {
+  try {
+    googleCalendarService.cancelAuth();
+    return { success: true };
+  } catch (error) {
+    console.error('Error cancelling auth:', error);
+    return { success: false };
   }
 });
 
@@ -955,8 +1026,84 @@ app.whenReady().then(async () => {
       }
     }
 
-    // Completely remove menu on all platforms
-    Menu.setApplicationMenu(null);
+    // Create application menu (dev builds only show OAuth method selector)
+    const updateMenu = () => {
+      if (process.platform === 'darwin') {
+        const template: Electron.MenuItemConstructorOptions[] = [
+          {
+            label: app.getName(),
+            submenu: [
+              // Dev menu items (only in dev builds)
+              ...(isDev ? [{
+                label: 'OAuth Method (Dev)',
+                submenu: [
+                  {
+                    label: 'Auto (Fallback Chain)',
+                    type: 'radio',
+                    checked: devOAuthMethod === null,
+                    click: () => {
+                      devOAuthMethod = null;
+                      console.log('[Dev] OAuth method set to: Auto (fallback chain)');
+                      updateMenu();
+                    }
+                  },
+                  {
+                    label: 'shell.openExternal',
+                    type: 'radio',
+                    checked: devOAuthMethod === 'openExternal',
+                    click: () => {
+                      devOAuthMethod = 'openExternal';
+                      console.log('[Dev] OAuth method set to: shell.openExternal');
+                      updateMenu();
+                    }
+                  },
+                  {
+                    label: 'exec("open")',
+                    type: 'radio',
+                    checked: devOAuthMethod === 'execOpen',
+                    click: () => {
+                      devOAuthMethod = 'execOpen';
+                      console.log('[Dev] OAuth method set to: exec("open")');
+                      updateMenu();
+                    }
+                  },
+                  {
+                    label: 'Manual (Return URL)',
+                    type: 'radio',
+                    checked: devOAuthMethod === 'manual',
+                    click: () => {
+                      devOAuthMethod = 'manual';
+                      console.log('[Dev] OAuth method set to: Manual');
+                      updateMenu();
+                    }
+                  }
+                ]
+              }, { type: 'separator' }] : []),
+              {
+                label: 'About ' + app.getName(),
+                role: 'about'
+              },
+              { type: 'separator' },
+              {
+                label: 'Quit ' + app.getName(),
+                accelerator: 'Command+Q',
+                click: () => {
+                  app.quit();
+                }
+              }
+            ]
+          }
+        ];
+        
+        const menu = Menu.buildFromTemplate(template);
+        Menu.setApplicationMenu(menu);
+      } else {
+        // On non-macOS, remove the menu
+        Menu.setApplicationMenu(null);
+      }
+    };
+    
+    updateMenu();
 
     createTray();
   } catch (error) {
