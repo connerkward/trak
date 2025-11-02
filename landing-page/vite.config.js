@@ -7,7 +7,7 @@ export default defineConfig({
     fastRefresh: true
   })],
   root: '.',
-  base: process.env.NODE_ENV === 'production' ? '/trak/' : '/',
+  base: '/',
   build: {
     outDir: '../docs',
     emptyOutDir: true,
