@@ -12,6 +12,12 @@ exports.default = async function notarizing(context) {
     return;
   }
 
+  // Skip notarization for MAS builds (App Store handles notarization)
+  if (appOutDir.includes('/mas-') || appOutDir.includes('\\mas-')) {
+    console.log('⏭️  Skipping notarization for MAS build (App Store will handle):', appOutDir);
+    return;
+  }
+
   // Skip notarization for temporary universal build dirs
   if (appOutDir.includes('-temp')) {
     console.log('⏭️  Skipping notarization for temporary build:', appOutDir);
