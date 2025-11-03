@@ -82,9 +82,7 @@ function notifyAllWindows(event: string): void {
 }
 
 // Helper function to open URLs with fallback chain for MAS compatibility
-// 1. Try shell.openExternal (works in dev/DMG builds)
-// 2. Fallback to exec('open') via NSWorkspace (works in MAS with Apple Events entitlement)
-// 3. Final fallback returns URL for manual opening
+// Order: 1. exec('open') - MAS compatible, 2. shell.openExternal - standard Electron, 3. manual
 // If devOAuthMethod is set (dev builds only), use that specific method instead of fallback chain
 async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: string }> {
   // If dev method is set (only in dev builds), use it directly
@@ -120,30 +118,41 @@ async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: 
     return { success: false, url };
   }
 
-  // Auto fallback chain (production behavior)
-  // Try shell.openExternal first (standard Electron API)
+  // Production fallback chain: exec('open') first (MAS compatible), then shell.openExternal, then manual
+  // Try exec('open') first (works in MAS sandbox with proper entitlement, doesn't hang)
   try {
-    console.log('Attempting to open URL via shell.openExternal...');
-    await shell.openExternal(url);
-    console.log('✓ URL opened via shell.openExternal');
-    return { success: true };
-  } catch (shellError) {
-    console.warn('shell.openExternal failed:', shellError);
-    
-    // Fallback: Use 'open' command (works in MAS sandbox with Apple Events entitlement)
-    try {
-      console.log('Attempting to open URL via NSWorkspace (exec open)...');
-      await new Promise<void>((resolve, reject) => {
-        exec(`open "${url}"`, (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
+    console.log('Attempting to open URL via exec("open") (MAS compatible)...');
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout opening URL via exec("open")'));
+      }, 5000); // 5 second timeout
+      
+      exec(`open "${url}"`, (error) => {
+        clearTimeout(timeout);
+        if (error) reject(error);
+        else resolve();
       });
-      console.log('✓ URL opened via NSWorkspace');
+    });
+    console.log('✓ URL opened via exec("open")');
+    return { success: true };
+  } catch (execError) {
+    console.warn('exec("open") failed:', execError);
+    
+    // Fallback: Try shell.openExternal (standard Electron API)
+    try {
+      console.log('Attempting to open URL via shell.openExternal...');
+      // Add timeout to prevent hanging
+      await Promise.race([
+        shell.openExternal(url),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('shell.openExternal timeout')), 3000)
+        )
+      ]);
+      console.log('✓ URL opened via shell.openExternal');
       return { success: true };
-    } catch (execError) {
-      console.error('Both shell.openExternal and exec(open) failed:', execError);
-      // Return URL for manual opening
+    } catch (shellError) {
+      console.error('Both exec("open") and shell.openExternal failed:', shellError);
+      // Final fallback: Return URL for manual opening
       return { success: false, url };
     }
   }
