@@ -70,7 +70,7 @@ let mcpPollInterval: NodeJS.Timeout | null = null;
 let lastKnownMcpTimestamp = 0;
 
 // Dev preference for OAuth flow method (null = auto fallback, only used in dev builds)
-let devOAuthMethod: 'openExternal' | 'execOpen' | 'manual' | null = null;
+let devOAuthMethod: 'execOpen' | 'manual' | null = null;
 
 // Helper function to notify all windows of data changes
 function notifyAllWindows(event: string): void {
@@ -81,22 +81,10 @@ function notifyAllWindows(event: string): void {
   });
 }
 
-// Helper function to open URLs with fallback chain for MAS compatibility
-// Order: 1. exec('open') - MAS compatible, 2. shell.openExternal - standard Electron, 3. manual
-// If devOAuthMethod is set (dev builds only), use that specific method instead of fallback chain
+// Helper function to open URLs - uses exec('open') which works in MAS builds
+// If devOAuthMethod is set (dev builds only), use that specific method instead
 async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: string }> {
   // If dev method is set (only in dev builds), use it directly
-  if (isDev && devOAuthMethod === 'openExternal') {
-    try {
-      console.log('[Dev] Using shell.openExternal method');
-      await shell.openExternal(url);
-      return { success: true };
-    } catch (error) {
-      console.error('[Dev] shell.openExternal failed:', error);
-      return { success: false, url };
-    }
-  }
-  
   if (isDev && devOAuthMethod === 'execOpen') {
     try {
       console.log('[Dev] Using exec("open") method');
@@ -118,10 +106,10 @@ async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: 
     return { success: false, url };
   }
 
-  // Production fallback chain: exec('open') first (MAS compatible), then shell.openExternal, then manual
-  // Try exec('open') first (works in MAS sandbox with proper entitlement, doesn't hang)
+  // Production: Use exec('open') which works in both MAS and DMG builds
+  // MAS compatible, doesn't hang, and works with automation.apple-events entitlement
   try {
-    console.log('Attempting to open URL via exec("open") (MAS compatible)...');
+    console.log('Attempting to open URL via exec("open")...');
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Timeout opening URL via exec("open")'));
@@ -136,25 +124,9 @@ async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: 
     console.log('✓ URL opened via exec("open")');
     return { success: true };
   } catch (execError) {
-    console.warn('exec("open") failed:', execError);
-    
-    // Fallback: Try shell.openExternal (standard Electron API)
-    try {
-      console.log('Attempting to open URL via shell.openExternal...');
-      // Add timeout to prevent hanging
-      await Promise.race([
-        shell.openExternal(url),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('shell.openExternal timeout')), 3000)
-        )
-      ]);
-      console.log('✓ URL opened via shell.openExternal');
-      return { success: true };
-    } catch (shellError) {
-      console.error('Both exec("open") and shell.openExternal failed:', shellError);
-      // Final fallback: Return URL for manual opening
-      return { success: false, url };
-    }
+    console.error('exec("open") failed:', execError);
+    // Return URL for manual opening
+    return { success: false, url };
   }
 }
 
@@ -1047,22 +1019,12 @@ app.whenReady().then(async () => {
                 label: 'OAuth Method (Dev)',
                 submenu: [
                   {
-                    label: 'Auto (Fallback Chain)',
+                    label: 'Auto (exec("open"))',
                     type: 'radio',
                     checked: devOAuthMethod === null,
                     click: () => {
                       devOAuthMethod = null;
-                      console.log('[Dev] OAuth method set to: Auto (fallback chain)');
-                      updateMenu();
-                    }
-                  },
-                  {
-                    label: 'shell.openExternal',
-                    type: 'radio',
-                    checked: devOAuthMethod === 'openExternal',
-                    click: () => {
-                      devOAuthMethod = 'openExternal';
-                      console.log('[Dev] OAuth method set to: shell.openExternal');
+                      console.log('[Dev] OAuth method set to: Auto (exec("open"))');
                       updateMenu();
                     }
                   },

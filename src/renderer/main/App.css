@@ -257,6 +257,108 @@
   opacity: 0.9;
 }
 
+.auth-code-form {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.auth-code-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text-color);
+  font-family: inherit;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
+
+.auth-code-input:focus {
+  outline: none;
+  border-color: var(--blue-color);
+}
+
+.auth-code-input::placeholder {
+  color: var(--secondary-text-color);
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.auth-buttons button {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.auth-submit-button {
+  background: var(--blue-color);
+  color: white;
+  border: none;
+}
+
+.auth-submit-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.auth-cancel-button {
+  background: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.auth-cancel-button:hover {
+  background: var(--hover-color);
+}
+
+.manual-url-container {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.manual-url-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--secondary-text-color);
+  font-size: 11px;
+}
+
+.manual-url-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 10px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  box-sizing: border-box;
+  cursor: text;
+}
+
+.manual-url-input:focus {
+  outline: none;
+  border-color: var(--blue-color);
+}
+
 /* Light mode variables */
 :root {
   --bg-color: rgba(255, 255, 255, 0.95);

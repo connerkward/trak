@@ -41,6 +41,9 @@ const App: React.FC = () => {
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState<boolean>(false);
   const [selectedCalendar, setSelectedCalendar] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [manualAuthUrl, setManualAuthUrl] = useState<string>('');
+  const [showAuthCode, setShowAuthCode] = useState<boolean>(false);
+  const [authCode, setAuthCode] = useState<string>('');
   const taskListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -267,10 +270,51 @@ const App: React.FC = () => {
 
   const startAuth = async () => {
     try {
-      await window.api.startAuth();
-      // UI will automatically update when OAuth success event is received
+      const result = await window.api.startAuth();
+      
+      // Check if we got a manual URL (fallback case)
+      if (result.manualUrl) {
+        setManualAuthUrl(result.manualUrl);
+        alert(result.message || 'Please copy the URL below and open it in your browser.');
+      }
+      
+      if (result.success) {
+        setShowAuthCode(true);
+      } else {
+        // If auth didn't succeed, reset state
+        setIsAuthenticated(false);
+      }
     } catch (error) {
       console.error('Auth error:', error);
+      alert(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
+      setIsAuthenticated(false);
+      setShowAuthCode(false);
+      setAuthCode('');
+      setManualAuthUrl('');
+    }
+  };
+
+  const submitAuthCode = async () => {
+    if (!authCode.trim()) {
+      alert('Please enter the authorization code');
+      return;
+    }
+
+    try {
+      const success = await window.api.setAuthCode(authCode.trim());
+      
+      if (success) {
+        setIsAuthenticated(true);
+        setShowAuthCode(false);
+        setAuthCode('');
+        setManualAuthUrl('');
+        loadData();
+      } else {
+        alert('❌ Invalid authorization code. Please try again.');
+      }
+    } catch (error) {
+      console.error('Auth code error:', error);
+      alert(`Authorization error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
@@ -290,11 +334,66 @@ const App: React.FC = () => {
       <div className="task-list-container" ref={taskListRef}>
         {!isAuthenticated ? (
           <div className="empty-state">
-            <div>No Google Calendar access</div>
-            <small>Connect your Google Calendar to get started</small>
-            <button className="auth-button" onClick={startAuth}>
-              🔐 Connect Google Calendar
-            </button>
+            {!showAuthCode ? (
+              <>
+                <div>No Google Calendar access</div>
+                <small>Connect your Google Calendar to get started</small>
+                <button className="auth-button" onClick={startAuth}>
+                  🔐 Connect Google Calendar
+                </button>
+                {manualAuthUrl && (
+                  <div className="manual-url-container">
+                    <div className="manual-url-label">URL copied to clipboard. Paste it in your browser:</div>
+                    <input 
+                      type="text" 
+                      className="manual-url-input"
+                      value={manualAuthUrl} 
+                      readOnly 
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="auth-code-form">
+                <div>Enter Authorization Code</div>
+                <small>Paste the code from your browser</small>
+                <input
+                  type="text"
+                  className="auth-code-input"
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
+                  placeholder="Authorization code"
+                />
+                <div className="auth-buttons">
+                  <button className="auth-submit-button" onClick={submitAuthCode}>
+                    Submit
+                  </button>
+                  <button 
+                    className="auth-cancel-button"
+                    onClick={() => {
+                      setShowAuthCode(false);
+                      setAuthCode('');
+                      setManualAuthUrl('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {manualAuthUrl && (
+                  <div className="manual-url-container">
+                    <div className="manual-url-label">Or open this URL manually:</div>
+                    <input 
+                      type="text" 
+                      className="manual-url-input"
+                      value={manualAuthUrl} 
+                      readOnly 
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : timers.length === 0 ? (
           <div className="empty-state">
