@@ -10,7 +10,6 @@ dist/
 dist-electron/
 build/
 out/
-docs/
 
 # Environment variables
 .env
@@ -119,8 +118,6 @@ playwright-report/
 test-results.xml 
 
 dist-bundle/
-
-docs/
 
 dist-electron-
 .env.test
