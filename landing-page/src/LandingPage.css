@@ -309,11 +309,11 @@ html, body {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
-  max-width: 400px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 24px;
 }
 
 .hero-demo {
@@ -323,17 +323,10 @@ html, body {
   align-items: center;
 }
 
-.hero-demo .mock-demo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 400px;
-}
-
 .demo-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  margin-top: -8px;
 }
 
 .demo-header h3 {
@@ -682,7 +675,6 @@ html, body {
   }
 
   .hero-demo .mock-demo {
-    max-width: 100%;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
