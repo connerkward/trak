@@ -10,6 +10,7 @@ dist/
 dist-electron/
 build/
 out/
+docs/
 
 # Environment variables
 .env
