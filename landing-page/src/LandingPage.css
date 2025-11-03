@@ -309,7 +309,11 @@ html, body {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: 100%;
+  max-width: 400px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hero-demo {
@@ -317,6 +321,14 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.hero-demo .mock-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
 }
 
 .demo-header {
@@ -337,7 +349,8 @@ html, body {
 
 .demo-app {
   max-width: 320px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0 auto !important;
   min-height: 400px !important;
   height: 400px !important;
   background: var(--bg-color);
@@ -662,10 +675,24 @@ html, body {
     font-size: 2.5rem;
   }
 
+  .hero-demo {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .hero-demo .mock-demo {
+    max-width: 100%;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
   .demo-app {
     min-height: 400px !important;
     height: 400px !important;
     max-width: 320px;
+    margin: 0 auto !important;
   }
 
   .features-grid {
