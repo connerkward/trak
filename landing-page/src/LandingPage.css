@@ -1,7 +1,7 @@
 /* Import base app styles */
 @import './App.css';
 
-/* Landing Page Specific Styles */
+/* Landing Page Styles */
 .landing-page {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
   line-height: 1.6;
