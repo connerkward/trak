@@ -44,6 +44,8 @@ const App: React.FC = () => {
   const [manualAuthUrl, setManualAuthUrl] = useState<string>('');
   const [showAuthCode, setShowAuthCode] = useState<boolean>(false);
   const [authCode, setAuthCode] = useState<string>('');
+  const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string>('');
   const taskListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -269,28 +271,38 @@ const App: React.FC = () => {
   };
 
   const startAuth = async () => {
+    setIsAuthenticating(true);
+    setAuthError('');
+    setManualAuthUrl('');
+    setShowAuthCode(false);
+    setAuthCode('');
+    
     try {
       const result = await window.api.startAuth();
       
       // Check if we got a manual URL (fallback case)
       if (result.manualUrl) {
         setManualAuthUrl(result.manualUrl);
-        alert(result.message || 'Please copy the URL below and open it in your browser.');
+        // Don't show alert, just display the URL in the UI
       }
       
       if (result.success) {
         setShowAuthCode(true);
       } else {
-        // If auth didn't succeed, reset state
+        // If auth didn't succeed, show error
+        setAuthError(result.error || 'Failed to start authentication. Please try again.');
         setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth error:', error);
-      alert(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setAuthError(`Authentication error: ${errorMessage}`);
       setIsAuthenticated(false);
       setShowAuthCode(false);
       setAuthCode('');
       setManualAuthUrl('');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -338,9 +350,28 @@ const App: React.FC = () => {
               <>
                 <div>No Google Calendar access</div>
                 <small>Connect your Google Calendar to get started</small>
-                <button className="auth-button" onClick={startAuth}>
-                  🔐 Connect Google Calendar
+                <button 
+                  className="auth-button" 
+                  onClick={startAuth}
+                  disabled={isAuthenticating}
+                  style={{ opacity: isAuthenticating ? 0.6 : 1, cursor: isAuthenticating ? 'not-allowed' : 'pointer' }}
+                >
+                  {isAuthenticating ? '⏳ Connecting...' : '🔐 Connect Google Calendar'}
                 </button>
+                {authError && (
+                  <div style={{ 
+                    marginTop: '12px', 
+                    padding: '8px 12px', 
+                    backgroundColor: 'rgba(255, 59, 48, 0.1)', 
+                    border: '1px solid rgba(255, 59, 48, 0.3)', 
+                    borderRadius: '6px',
+                    color: '#ff3b30',
+                    fontSize: '13px',
+                    textAlign: 'center'
+                  }}>
+                    {authError}
+                  </div>
+                )}
                 {manualAuthUrl && (
                   <div className="manual-url-container">
                     <div className="manual-url-label">URL copied to clipboard. Paste it in your browser:</div>

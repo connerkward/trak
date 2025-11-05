@@ -487,9 +487,11 @@ export class GoogleCalendarServiceSimple {
         if (error.code === 'EADDRINUSE') {
           errorMessage = 'OAuth server port is already in use. Please try again.';
         } else if (error.code === 'EACCES') {
-          errorMessage = 'OAuth server requires network permissions. Please check app permissions.';
+          errorMessage = 'OAuth server requires network permissions (EACCES). Please check System Settings > Privacy & Security for Dingo Track network permissions.';
         } else if (error.code === 'EADDRNOTAVAIL') {
-          errorMessage = 'OAuth server cannot bind to localhost. This may be due to sandbox restrictions.';
+          errorMessage = 'OAuth server cannot bind to localhost (EADDRNOTAVAIL). This may be due to App Store sandbox restrictions. Please ensure com.apple.security.network.server entitlement is enabled.';
+        } else if (error.code === 'EPERM') {
+          errorMessage = 'OAuth server permission denied (EPERM). This may be due to App Store sandbox restrictions.';
         }
         console.error(`OAuth server error (${error.code}):`, errorMessage);
         reject(new Error(errorMessage));

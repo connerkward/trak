@@ -81,7 +81,8 @@ function notifyAllWindows(event: string): void {
   });
 }
 
-// Helper function to open URLs - uses exec('open') which works in MAS builds
+// Helper function to open URLs - prefers shell.openExternal for MAS builds (sandbox-friendly)
+// Falls back to exec('open') if shell.openExternal fails
 // If devOAuthMethod is set (dev builds only), use that specific method instead
 async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: string }> {
   // If dev method is set (only in dev builds), use it directly
@@ -106,27 +107,36 @@ async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: 
     return { success: false, url };
   }
 
-  // Production: Use exec('open') which works in both MAS and DMG builds
-  // MAS compatible, doesn't hang, and works with automation.apple-events entitlement
+  // Production: Try shell.openExternal first (works better in MAS sandbox)
+  // Then fall back to exec('open') if needed
   try {
-    console.log('Attempting to open URL via exec("open")...');
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout opening URL via exec("open")'));
-      }, 5000); // 5 second timeout
-      
-      exec(`open "${url}"`, (error) => {
-        clearTimeout(timeout);
-        if (error) reject(error);
-        else resolve();
-      });
-    });
-    console.log('✓ URL opened via exec("open")');
+    console.log('Attempting to open URL via shell.openExternal (sandbox-friendly)...');
+    await shell.openExternal(url);
+    console.log('✓ URL opened via shell.openExternal');
     return { success: true };
-  } catch (execError) {
-    console.error('exec("open") failed:', execError);
-    // Return URL for manual opening
-    return { success: false, url };
+  } catch (shellError) {
+    console.warn('shell.openExternal failed, trying exec("open") fallback:', shellError);
+    
+    try {
+      console.log('Attempting to open URL via exec("open")...');
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Timeout opening URL via exec("open")'));
+        }, 5000); // 5 second timeout
+        
+        exec(`open "${url}"`, (error) => {
+          clearTimeout(timeout);
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+      console.log('✓ URL opened via exec("open")');
+      return { success: true };
+    } catch (execError) {
+      console.error('Both shell.openExternal and exec("open") failed:', execError);
+      // Return URL for manual opening
+      return { success: false, url };
+    }
   }
 }
 
@@ -637,10 +647,21 @@ ipcMain.handle('start-auth', async (event) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Authentication error:', errorMessage);
+    
+    // Provide user-friendly error messages for common MAS issues
+    let userMessage = errorMessage;
+    if (errorMessage.includes('EACCES') || errorMessage.includes('network permissions')) {
+      userMessage = 'Network permissions required. Please check System Settings > Privacy & Security > Network permissions for Dingo Track.';
+    } else if (errorMessage.includes('EADDRNOTAVAIL') || errorMessage.includes('sandbox')) {
+      userMessage = 'Unable to start OAuth server. This may be due to App Store sandbox restrictions. Please try again or contact support.';
+    } else if (errorMessage.includes('EADDRINUSE')) {
+      userMessage = 'OAuth server port is in use. Please wait a moment and try again.';
+    }
+    
     // Return error details to renderer for user-friendly display
     return { 
       success: false, 
-      error: errorMessage 
+      error: userMessage 
     };
   }
 });
