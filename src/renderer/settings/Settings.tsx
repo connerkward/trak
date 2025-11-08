@@ -519,7 +519,11 @@ const Settings: React.FC = () => {
           onClick={async () => {
             try {
               const res = await window.api.generateMCPConfig();
-              alert('✅ Claude Desktop installer opened (dingo-track.mcpb). If Claude did not open, the file is in your Downloads folder.');
+              if (!res?.success) {
+                return;
+              }
+              const targetPath = res.path ?? 'the selected location';
+              alert(`✅ Claude Desktop bundle saved to ${targetPath}. If Claude did not open automatically, you can install it manually from that location.`);
             } catch (error) {
               console.error('Failed to generate MCP config:', error);
               alert('❌ Failed to generate MCP configuration');

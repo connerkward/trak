@@ -1,6 +1,7 @@
 import * as electron from 'electron';
 import type { Tray as TrayType, BrowserWindow as BrowserWindowType } from 'electron';
 const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen, clipboard } = electron;
+app.setName('Dingo Track');
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -833,20 +834,20 @@ ipcMain.handle('set-open-at-login', (event, enabled: boolean) => {
   }
 });
 
-ipcMain.handle('open-login-items', () => {
+ipcMain.handle('open-login-items', async () => {
   if (process.platform === 'darwin') {
-    // Open macOS System Settings to Login Items using open command
-    exec('open "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"', (err) => {
-      if (err) {
-        console.error('Failed to open Login Items:', err);
-        // Fallback: try opening System Settings generally with MAS-compatible method
-        exec('open "x-apple.systempreferences:"', (fallbackErr) => {
-          if (fallbackErr) {
-            console.error('Failed to open System Settings:', fallbackErr);
-          }
-        });
+    // Open macOS System Settings to Login Items using shell.openExternal (MAS-safe)
+    try {
+      await shell.openExternal('x-apple.systempreferences:com.apple.LoginItems-Settings.extension');
+    } catch (err) {
+      console.error('Failed to open Login Items:', err);
+      // Fallback: try opening System Settings generally
+      try {
+        await shell.openExternal('x-apple.systempreferences:');
+      } catch (fallbackErr) {
+        console.error('Failed to open System Settings:', fallbackErr);
       }
-    });
+    }
   } else {
     // For other platforms, just return (no-op)
     console.log('Login items settings not available on this platform');
@@ -912,9 +913,11 @@ ipcMain.handle('open-dxt-file', async () => {
   if (!result.canceled && result.filePath) {
     fs.writeFileSync(result.filePath, dxtContent);
     // Use MAS-compatible method to open file
-    exec(`open "${result.filePath}"`, (err) => {
-      if (err) console.error('Failed to open .dxt file:', err);
-    });
+    const openResult = await shell.openPath(result.filePath);
+    if (openResult) {
+      console.error('Failed to open .dxt file:', openResult);
+      shell.showItemInFolder(result.filePath);
+    }
   }
 });
 
@@ -927,6 +930,8 @@ ipcMain.handle('generate-mcp-config', async () => {
     const mcpServerPath = isDev
       ? path.join(__dirname, '..', '..', 'out', 'main', 'mcp-server.js')
       : path.join(process.resourcesPath, 'app.asar', 'out', 'main', 'mcp-server.js');
+
+    const userDataPath = app.getPath('userData');
 
     // Create MCPB manifest according to spec
     const manifest = {
@@ -945,7 +950,9 @@ ipcMain.handle('generate-mcp-config', async () => {
         mcp_config: {
           command: "node",
           args: ["${__dirname}/mcp-server.js"],
-          env: {}
+          env: {
+            DINGO_TRACK_USER_DATA_PATH: userDataPath
+          }
         }
       },
       tools: [
@@ -974,18 +981,32 @@ ipcMain.handle('generate-mcp-config', async () => {
     const serverCode = fs.readFileSync(mcpServerPath);
     zip.addFile('mcp-server.js', serverCode);
 
-    // Get the downloads folder
-    const downloadsPath = app.getPath('downloads');
-    const mcpbPath = path.join(downloadsPath, 'dingo-track.mcpb');
+    let defaultDirectory: string;
+    try {
+      defaultDirectory = app.getPath('downloads');
+    } catch {
+      defaultDirectory = app.getPath('userData');
+    }
+    const defaultPath = path.join(defaultDirectory, 'dingo-track.mcpb');
 
-    // Write the MCPB file
-    zip.writeZip(mcpbPath);
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save Claude Desktop Integration Bundle',
+      defaultPath,
+      filters: [{ name: 'Claude Bundles', extensions: ['mcpb'] }]
+    });
 
-    // Open MCPB for install; if fails, reveal in folder
-    const openResult = await shell.openPath(mcpbPath);
-    if (openResult) shell.showItemInFolder(mcpbPath);
+    if (canceled || !filePath) {
+      return { success: false, path: '' };
+    }
 
-    return { success: true, path: mcpbPath };
+    zip.writeZip(filePath);
+
+    const openResult = await shell.openPath(filePath);
+    if (openResult) {
+      shell.showItemInFolder(filePath);
+    }
+
+    return { success: true, path: filePath };
   } catch (error) {
     console.error('Failed to generate MCPB:', error);
     throw error;

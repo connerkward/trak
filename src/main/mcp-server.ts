@@ -22,15 +22,18 @@ import { Timer, Calendar } from '../shared/types/index.js';
  */
 
 // Storage path for Dingo Track data - match Electron's app.getPath('userData')
-const getStoragePath = () => {
-  const userDataPath = path.join(homedir(), 'Library', 'Application Support', '@every-time', 'dingo-track');
-  return userDataPath;
-};
-
-// Get the correct storage path for the main app
-const getMainAppStoragePath = () => {
+const resolveUserDataPath = () => {
+  const envPath = process.env.DINGO_TRACK_USER_DATA_PATH;
+  if (envPath && envPath.trim().length > 0) {
+    return envPath;
+  }
   return path.join(homedir(), 'Library', 'Application Support', '@every-time', 'dingo-track');
 };
+
+const getStoragePath = () => resolveUserDataPath();
+
+// Get the correct storage path for the main app
+const getMainAppStoragePath = () => resolveUserDataPath();
 
 // Simple storage interface with file locking to prevent race conditions
 class SimpleStore {
