@@ -1,7 +1,7 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
-import { copyFileSync } from 'fs'
+import { copyFileSync, chmodSync } from 'fs'
 
 export default defineConfig({
   main: {
@@ -17,6 +17,17 @@ export default defineConfig({
             resolve(__dirname, 'out/main/manifest.json')
           )
         }
+      },
+      {
+        name: 'make-mcp-server-executable',
+        closeBundle() {
+          const mcpServerPath = resolve(__dirname, 'out/main/mcp-server.js');
+          try {
+            chmodSync(mcpServerPath, '755');
+          } catch (error) {
+            console.warn('Failed to make mcp-server.js executable:', error);
+          }
+        }
       }
     ],
     build: {
@@ -26,7 +37,13 @@ export default defineConfig({
           'mcp-server': resolve(__dirname, 'src/main/mcp-server.ts')
         },
         output: {
-          manualChunks: undefined
+          manualChunks: undefined,
+          banner: (chunk) => {
+            if (chunk.name === 'mcp-server') {
+              return '#!/usr/bin/env node\n';
+            }
+            return '';
+          }
         }
       }
     }
