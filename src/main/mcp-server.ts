@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -9,12 +8,19 @@ import {
 import * as path from 'path';
 import * as fs from 'fs';
 import { homedir } from 'os';
-import { spawn } from 'child_process';
-import express from 'express';
-import cors from 'cors';
 
-// Import services and types
-import { Timer, Calendar } from '../shared/types/index.js';
+// Define types inline to avoid import issues when bundled
+interface Timer {
+  name: string;
+  calendarId: string;
+}
+
+interface Calendar {
+  id: string;
+  name: string;
+  primary: boolean;
+  accessRole: string;
+}
 
 /**
  * MCP Server for Dingo Track
@@ -564,50 +570,33 @@ function formatDuration(ms: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// HTTP server for bidirectional communication with Electron app (standard MCP pattern)
-const expressApp = express();
-expressApp.use(cors());
-expressApp.use(express.json());
-
-// Health check endpoint
-expressApp.get('/health', (req, res) => {
-  res.json({ status: 'ok', server: 'dingo-track-mcp' });
-});
-
-// Track last change timestamp for polling
-let lastChangeTimestamp = Date.now();
-
-// Helper function to notify of changes (call after any data modification)
+// Helper function to notify of changes (logs to stderr for debugging)
 function notifyChange(operation: string): void {
-  lastChangeTimestamp = Date.now();
-  console.error(`[MCP HTTP] ${operation} at ${new Date(lastChangeTimestamp).toISOString()}`);
+  const timestamp = Date.now();
+  console.error(`[MCP] ${operation} at ${new Date(timestamp).toISOString()}`);
 }
-
-// Notify endpoint - called by Electron app to trigger data reload
-expressApp.post('/notify-change', (req, res) => {
-  notifyChange('external notification received');
-  res.json({ success: true, timestamp: lastChangeTimestamp });
-});
-
-// Poll endpoint - Electron app polls this to check for changes
-expressApp.get('/last-change', (req, res) => {
-  res.json({ timestamp: lastChangeTimestamp });
-});
-
-// Start HTTP server
-const HTTP_PORT = 3123; // Non-standard port to avoid conflicts
-expressApp.listen(HTTP_PORT, () => {
-  console.error(`[MCP HTTP] Server listening on port ${HTTP_PORT}`);
-});
 
 // Start the MCP stdio server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Dingo Track MCP server running on stdio');
+  try {
+    console.error('[MCP] Starting Dingo Track MCP server...');
+    console.error('[MCP] Node version:', process.version);
+    console.error('[MCP] Working directory:', process.cwd());
+    console.error('[MCP] User data path:', process.env.DINGO_TRACK_USER_DATA_PATH || 'not set');
+
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+
+    console.error('[MCP] Dingo Track MCP server running on stdio');
+    console.error('[MCP] Server ready to accept requests');
+  } catch (error) {
+    console.error('[MCP] Failed to start server:', error);
+    throw error;
+  }
 }
 
 main().catch((error) => {
-  console.error('Fatal error in main():', error);
+  console.error('[MCP] Fatal error in main():', error);
+  console.error('[MCP] Stack trace:', error instanceof Error ? error.stack : 'N/A');
   process.exit(1);
 });

@@ -526,7 +526,8 @@ const Settings: React.FC = () => {
               alert(`✅ Claude Desktop bundle saved to ${targetPath}. If Claude did not open automatically, you can install it manually from that location.`);
             } catch (error) {
               console.error('Failed to generate MCP config:', error);
-              alert('❌ Failed to generate MCP configuration');
+              const message = error instanceof Error ? error.message : String(error ?? 'Unknown error');
+              alert(`❌ Failed to generate MCP configuration.\n\n${message}`);
             }
           }}
         >

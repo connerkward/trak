@@ -141,6 +141,35 @@ async function openUrlInBrowser(url: string): Promise<{ success: boolean; url?: 
   }
 }
 
+async function loadMcpServerBundle(): Promise<Buffer> {
+  // Use pre-bundled MCP server (bundled at build time, not runtime)
+  // This avoids esbuild runtime issues in MAS sandbox
+  const searchPaths = [
+    path.join(__dirname, 'mcp-server.js'),
+    path.join(__dirname, '..', 'mcp-server.js'),
+    path.join(app.getAppPath(), 'out', 'main', 'mcp-server.js'),
+    path.join(app.getAppPath(), 'dist', 'main', 'mcp-server.js'),
+    path.join(app.getAppPath(), 'dist-electron', 'main', 'mcp-server.js'),
+  ];
+
+  console.log('[MCP] Searching for pre-bundled MCP server in:', searchPaths);
+
+  for (const candidate of searchPaths) {
+    try {
+      if (fs.existsSync(candidate)) {
+        console.log('[MCP] Found MCP server at:', candidate);
+        const content = fs.readFileSync(candidate);
+        console.log('[MCP] Loaded MCP server bundle:', content.length, 'bytes');
+        return content;
+      }
+    } catch (error) {
+      console.warn('[MCP] Failed to read MCP server at:', candidate, error);
+    }
+  }
+
+  throw new Error('Unable to locate pre-bundled MCP server. Run `npm run build` to generate it.');
+}
+
 async function initializeServices() {
   try {
     // Bootstrap all services with dependency injection
@@ -239,8 +268,11 @@ function setupStorageWatcher() {
 
         // Debounce: wait a bit to ensure file write is complete
         setTimeout(() => {
-        // Notify all windows to refresh their data
-        notifyAllWindows('data-changed');
+          // Reload activeTimers from storage (MCP might have changed them)
+          timerService.reloadActiveTimers();
+
+          // Notify all windows to refresh their data
+          notifyAllWindows('data-changed');
         }, 150);
       }
     });
@@ -926,23 +958,19 @@ ipcMain.handle('generate-mcp-config', async () => {
   try {
     const AdmZip = require('adm-zip');
 
-    // Determine the correct path to the MCP server based on environment
-    const mcpServerPath = isDev
-      ? path.join(__dirname, '..', '..', 'out', 'main', 'mcp-server.js')
-      : path.join(process.resourcesPath, 'app.asar', 'out', 'main', 'mcp-server.js');
-
     const userDataPath = app.getPath('userData');
+    const serverCode = await loadMcpServerBundle();
 
     // Create MCPB manifest according to spec
     const manifest = {
-      manifest_version: "0.2",
+      manifest_version: "0.3",
       name: "dingo-track",
       version: "1.0.0",
       display_name: "Dingo Track",
       description: "Time tracking with Google Calendar integration. Control your timers and track time directly from Claude.",
       author: {
         name: "Every Time",
-        url: "https://github.com/yourusername/trak"
+        url: "https://github.com/everytime/trak"
       },
       server: {
         type: "node",
@@ -951,7 +979,8 @@ ipcMain.handle('generate-mcp-config', async () => {
           command: "node",
           args: ["${__dirname}/mcp-server.js"],
           env: {
-            DINGO_TRACK_USER_DATA_PATH: userDataPath
+            DINGO_TRACK_USER_DATA_PATH: userDataPath,
+            PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin'
           }
         }
       },
@@ -963,12 +992,7 @@ ipcMain.handle('generate-mcp-config', async () => {
         { name: "list_calendars", description: "List Google Calendars" },
         { name: "get_timer_status", description: "Get timer status and duration" },
         { name: "start_stop_timer", description: "Start or stop a timer by name" }
-      ],
-      compatibility: {
-        runtime: {
-          node: ">=16.0.0"
-        }
-      }
+      ]
     };
 
     // Create zip file
@@ -978,7 +1002,6 @@ ipcMain.handle('generate-mcp-config', async () => {
     zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'));
 
     // Add the MCP server to the root of the bundle
-    const serverCode = fs.readFileSync(mcpServerPath);
     zip.addFile('mcp-server.js', serverCode);
 
     let defaultDirectory: string;
@@ -989,7 +1012,13 @@ ipcMain.handle('generate-mcp-config', async () => {
     }
     const defaultPath = path.join(defaultDirectory, 'dingo-track.mcpb');
 
-    const { canceled, filePath } = await dialog.showSaveDialog({
+    const parentWindow = settingsWindow && !settingsWindow.isDestroyed()
+      ? settingsWindow
+      : BrowserWindow.getFocusedWindow();
+
+    parentWindow?.focus();
+
+    const { canceled, filePath } = await dialog.showSaveDialog(parentWindow ?? undefined, {
       title: 'Save Claude Desktop Integration Bundle',
       defaultPath,
       filters: [{ name: 'Claude Bundles', extensions: ['mcpb'] }]
