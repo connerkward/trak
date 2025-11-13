@@ -1,0 +1,13 @@
+{
+  "name": "aswebauthsession",
+  "version": "1.0.0",
+  "description": "Native ASWebAuthenticationSession binding for Electron on macOS",
+  "main": "index.js",
+  "gypfile": true,
+  "scripts": {
+    "install": "node-gyp rebuild"
+  },
+  "dependencies": {
+    "node-gyp": "^10.0.0"
+  }
+}

@@ -1,7 +1,6 @@
 import * as electron from 'electron';
 import type { Tray as TrayType, BrowserWindow as BrowserWindowType } from 'electron';
 const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, screen, clipboard } = electron;
-app.setName('Dingo Track');
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -9,6 +8,9 @@ import { GoogleCalendarServiceSimple } from './services/GoogleCalendarService';
 import { TimerService } from './services/timerService';
 import { serviceContainer, SERVICE_TOKENS } from './utils/ServiceContainer';
 import { bootstrapServices, initializeUserContext, setupOAuthEventListeners, cleanupServices } from './bootstrap';
+
+// Import native ASWebAuthenticationSession module (lazy loaded after app is ready)
+let asWebAuthSession: any = null;
 
 // Load environment variables from .env file
 import dotenv from 'dotenv';
@@ -80,6 +82,20 @@ function notifyAllWindows(event: string): void {
       window.webContents.send(event);
     }
   });
+}
+
+// Load native ASWebAuthenticationSession module
+function loadASWebAuthSession() {
+  if (asWebAuthSession) return; // Already loaded
+
+  try {
+    const modulePath = path.join(__dirname, '../../native/aswebauthsession');
+    asWebAuthSession = require(modulePath);
+    console.log('✓ ASWebAuthenticationSession native module loaded');
+  } catch (err) {
+    console.warn('ASWebAuthenticationSession native module not available, will use fallback OAuth method');
+    console.warn('Error:', err);
+  }
 }
 
 // Helper function to open URLs - prefers shell.openExternal for MAS builds (sandbox-friendly)
@@ -644,7 +660,7 @@ ipcMain.handle('get-calendars', async () => {
 ipcMain.handle('start-auth', async (event) => {
   try {
     const result = await googleCalendarService.authenticate();
-    
+
     if (result.authUrl) {
       // Remember which window initiated the OAuth flow
       try {
@@ -652,9 +668,34 @@ ipcMain.handle('start-auth', async (event) => {
         lastAuthRequestingWindowId = win ? win.id : null;
       } catch {}
 
-      // Try to open the auth URL in the default browser (with fallback chain)
+      // Load ASWebAuthenticationSession module if not already loaded
+      if (!asWebAuthSession) {
+        loadASWebAuthSession();
+      }
+
+      // Use ASWebAuthenticationSession if available (required for Mac App Store)
+      if (asWebAuthSession && asWebAuthSession.isAvailable()) {
+        try {
+          console.log('Using ASWebAuthenticationSession for OAuth');
+          const callbackUrl = await asWebAuthSession.startAuthSession(
+            result.authUrl,
+            'http' // callback URL scheme (just the scheme, not the full URL)
+          );
+
+          console.log('ASWebAuthenticationSession completed with callback:', callbackUrl);
+
+          // The callback URL will be handled by the loopback server
+          // Let it complete naturally - the server is already listening
+          return { success: true };
+        } catch (asError) {
+          console.error('ASWebAuthenticationSession error:', asError);
+          // Fall back to external browser if ASWebAuthenticationSession fails
+        }
+      }
+
+      // Fallback: Try to open the auth URL in the default browser (with fallback chain)
       const openResult = await openUrlInBrowser(result.authUrl);
-      
+
       if (openResult.success) {
         // Browser opened successfully
         return { success: true };
@@ -668,7 +709,7 @@ ipcMain.handle('start-auth', async (event) => {
             console.warn('Failed to copy to clipboard:', clipboardError);
           }
         }
-        return { 
+        return {
           success: true,
           manualUrl: openResult.url,
           message: 'URL copied to clipboard! Please paste it into your browser to continue authentication.'
@@ -701,6 +742,12 @@ ipcMain.handle('start-auth', async (event) => {
 
 ipcMain.handle('cancel-auth', async () => {
   try {
+    // Cancel ASWebAuthenticationSession if available
+    if (asWebAuthSession && asWebAuthSession.isAvailable()) {
+      asWebAuthSession.cancelAuthSession();
+    }
+
+    // Also cancel the loopback server
     googleCalendarService.cancelAuth();
     return { success: true };
   } catch (error) {
@@ -1055,6 +1102,12 @@ ipcMain.on('notify-calendar-change', () => {
 // App lifecycle
 app.whenReady().then(async () => {
   try {
+    // Set app name
+    app.setName('Dingo Track');
+
+    // Load native ASWebAuthenticationSession module (must be after app is ready)
+    loadASWebAuthSession();
+
     // Initialize services first (must be after app is ready)
     await initializeServices();
 
