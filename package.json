@@ -1,10 +1,11 @@
 {
   "name": "@every-time/dingo-track",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "Time tracking application",
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/build-aswebauthsession.js",
     "dev": "electron-vite dev",
     "build": "electron-vite build && node scripts/bundle-mcp-server.js && node scripts/inject-credentials.js",
     "dist:mac": "npm run build && electron-builder --mac",
@@ -66,7 +67,11 @@
     "extraResources": [
       {
         "from": "native/aswebauthsession",
-        "to": "native/aswebauthsession"
+        "to": "native/aswebauthsession",
+        "filter": [
+          "index.js",
+          "build/Release/aswebauthsession.node"
+        ]
       }
     ],
     "asar": true,
@@ -82,6 +87,7 @@
           ]
         }
       ],
+      "x64ArchFiles": "**/native/aswebauthsession/build/Release/aswebauthsession.node",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "notarize": false,
@@ -102,6 +108,7 @@
           ]
         }
       ],
+      "x64ArchFiles": "**/native/aswebauthsession/build/Release/aswebauthsession.node",
       "entitlements": "resources/entitlements.mas.plist",
       "entitlementsInherit": "resources/entitlements.mas.inherit.plist",
       "hardenedRuntime": false,

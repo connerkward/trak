@@ -6,6 +6,10 @@
       "conditions": [
         ['OS=="mac"', {
           "xcode_settings": {
+            "ARCHS": [
+              "arm64",
+              "x86_64"
+            ],
             "OTHER_CFLAGS": [
               "-ObjC++",
               "-std=c++17"
