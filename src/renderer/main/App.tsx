@@ -288,6 +288,12 @@ const App: React.FC = () => {
       
       if (result.success) {
         setShowAuthCode(true);
+      } else if (result.cancelled) {
+        setShowAuthCode(false);
+        setAuthCode('');
+        setManualAuthUrl('');
+        setAuthError('');
+        setIsAuthenticated(false);
       } else {
         // If auth didn't succeed, show error
         setAuthError(result.error || 'Failed to start authentication. Please try again.');

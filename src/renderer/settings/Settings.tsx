@@ -201,8 +201,12 @@ const Settings: React.FC = () => {
   };
 
   const startAuth = async () => {
+    setIsAuthenticating(true);
+    setAuthCode('');
+    setManualAuthUrl('');
+    setShowAuthCode(false);
+
     try {
-      setIsAuthenticating(true);
       const result = await window.api.startAuth();
       
       // Check if we got a manual URL (fallback case)
@@ -213,17 +217,22 @@ const Settings: React.FC = () => {
       
       if (result.success) {
         setShowAuthCode(true);
+      } else if (result.cancelled) {
+        setShowAuthCode(false);
+        setAuthCode('');
+        setManualAuthUrl('');
+        alert(result.error || 'Authentication cancelled.');
       } else {
-        // If auth didn't succeed, reset state
-        setIsAuthenticating(false);
+        alert(result.error || 'Failed to start authentication. Please try again.');
       }
     } catch (error) {
       console.error('Auth error:', error);
       alert(`Authentication error: ${error instanceof Error ? error.message : String(error)}`);
-      setIsAuthenticating(false);
       setShowAuthCode(false);
       setAuthCode('');
       setManualAuthUrl('');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 

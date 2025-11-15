@@ -4,7 +4,13 @@ import type { Calendar, Timer } from '../shared/types';
 export interface ElectronAPI {
   // Calendar methods
   getCalendars: () => Promise<Calendar[]>;
-  startAuth: () => Promise<{ success: boolean; authUrl?: string }>;
+  startAuth: () => Promise<{
+    success: boolean;
+    manualUrl?: string;
+    message?: string;
+    error?: string;
+    cancelled?: boolean;
+  }>;
   cancelAuth: () => Promise<{ success: boolean }>;
   setAuthCode: (authCode: string) => Promise<boolean>;
   logout: () => Promise<{ success: boolean }>;

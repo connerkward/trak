@@ -60,6 +60,7 @@ let tray: (TrayType & { clickTimeout?: NodeJS.Timeout }) | null = null;
 let mainWindow: BrowserWindowType | null = null;
 let settingsWindow: BrowserWindowType | null = null;
 let lastAuthRequestingWindowId: number | null = null;
+let authFlowActive = false;
 
 // Services - now managed by DI container
 let googleCalendarService: GoogleCalendarServiceSimple;
@@ -82,6 +83,42 @@ function notifyAllWindows(event: string): void {
       window.webContents.send(event);
     }
   });
+}
+
+function restoreAuthRequestingWindow() {
+  if (!lastAuthRequestingWindowId) return;
+
+  try {
+    const requestingWindow = BrowserWindow.fromId(lastAuthRequestingWindowId);
+
+    if (!requestingWindow || requestingWindow.isDestroyed()) {
+      lastAuthRequestingWindowId = null;
+      return;
+    }
+
+    // For settings window or other windows, just show and focus them
+    if (settingsWindow && !settingsWindow.isDestroyed() && requestingWindow.id === settingsWindow.id) {
+      settingsWindow.show();
+      settingsWindow.focus();
+    } else if (requestingWindow.id !== mainWindow?.id) {
+      requestingWindow.show();
+      requestingWindow.focus();
+    }
+    // For main window, do nothing - let the user open it via tray when they want
+    // This prevents the window from jumping Spaces or appearing unexpectedly
+  } catch (err) {
+    console.warn('Failed to restore auth requesting window', err);
+  } finally {
+    // Always clear the flag after attempting restore
+    lastAuthRequestingWindowId = null;
+  }
+}
+
+function completeAuthFlow(options?: { restore?: boolean }) {
+  authFlowActive = false;
+  if (options?.restore) {
+    restoreAuthRequestingWindow();
+  }
 }
 
 // Load native ASWebAuthenticationSession module
@@ -491,6 +528,10 @@ function createMainWindow(trayBounds?: Electron.Rectangle): void {
 
   // Handle losing focus/clicking outside - with delay to prevent immediate closing
   const handleMainWindowBlur = () => {
+    if (authFlowActive) {
+      console.log('Auth flow active - keeping main window visible despite blur');
+      return;
+    }
     if (mainWindow && !mainWindow.webContents.isDevToolsOpened()) {
       // Add a delay to allow for tray icon click completion
       setTimeout(() => {
@@ -648,15 +689,23 @@ function createSettingsWindow(): void {
 // Setup IPC handlers (called after app is ready and services are initialized)
 function setupIPCHandlers() {
 ipcMain.handle('get-calendars', async () => {
-  const calendars = await googleCalendarService.getCalendars();
-  
-  // Sync timer service user state when calendars are available
-  if (calendars.length > 0 && !timerService.getCurrentUserId()) {
-    console.log('Calendars loaded, syncing timer service user state');
-    timerService.setCurrentUser('default');
+  try {
+    const calendars = await googleCalendarService.getCalendars();
+    
+    // Sync timer service user state when calendars are available
+    if (calendars.length > 0 && !timerService.getCurrentUserId()) {
+      console.log('Calendars loaded, syncing timer service user state');
+      timerService.setCurrentUser('default');
+    }
+    
+    return calendars;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('No tokens available')) {
+      console.log('No calendars available (user not authenticated yet)');
+      return [];
+    }
+    throw error;
   }
-  
-  return calendars;
 });
 
 ipcMain.handle('start-auth', async (event) => {
@@ -675,8 +724,18 @@ ipcMain.handle('start-auth', async (event) => {
         loadASWebAuthSession();
       }
 
+      const hasASWebSession = asWebAuthSession && asWebAuthSession.isAvailable();
+
       // Use ASWebAuthenticationSession if available (required for Mac App Store)
-      if (asWebAuthSession && asWebAuthSession.isAvailable()) {
+      if (hasASWebSession) {
+        authFlowActive = true;
+
+        // Hide the main window before opening the auth window
+        // This prevents the menu bar window from staying visible while the auth window is open
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+          hideMainWindowWithAnimation();
+        }
+
         try {
           console.log('Using ASWebAuthenticationSession for OAuth');
           const callbackUrl = await asWebAuthSession.startAuthSession(
@@ -685,42 +744,67 @@ ipcMain.handle('start-auth', async (event) => {
           );
 
           console.log('ASWebAuthenticationSession completed with callback:', callbackUrl);
+          completeAuthFlow({ restore: true });
 
           // The callback URL will be handled by the loopback server
           // Let it complete naturally - the server is already listening
           return { success: true };
         } catch (asError) {
-          console.error('ASWebAuthenticationSession error:', asError);
-          // Fall back to external browser if ASWebAuthenticationSession fails
+          const asErrorMessage = asError instanceof Error ? asError.message : String(asError);
+          console.error('ASWebAuthenticationSession error:', asErrorMessage);
+
+          // If the user closed/cancelled the ASWebAuthenticationSession window,
+          // don't fall back to the external browser — just surface the cancel state.
+          if (asErrorMessage.toLowerCase().includes('cancel')) {
+            googleCalendarService.cancelAuth();
+            completeAuthFlow({ restore: true });
+            return {
+              success: false,
+              cancelled: true,
+              error: 'Authentication cancelled. Please try again when you are ready.'
+            };
+          }
+
+          // Fall back to external browser only for real errors
+          completeAuthFlow({ restore: true });
+          return {
+            success: false,
+            error: 'Authentication failed to complete. Please try again.'
+          };
         }
       }
 
-      // Fallback: Try to open the auth URL in the default browser (with fallback chain)
-      const openResult = await openUrlInBrowser(result.authUrl);
+      if (!hasASWebSession) {
+        // Fallback: Try to open the auth URL in the default browser (with fallback chain)
+        const openResult = await openUrlInBrowser(result.authUrl);
 
-      if (openResult.success) {
-        // Browser opened successfully
-        return { success: true };
-      } else {
-        // All automatic methods failed - copy URL to clipboard for manual opening
-        if (openResult.url) {
-          try {
-            clipboard.writeText(openResult.url);
-            console.log('✓ URL copied to clipboard');
-          } catch (clipboardError) {
-            console.warn('Failed to copy to clipboard:', clipboardError);
+        if (openResult.success) {
+          completeAuthFlow({ restore: true });
+          // Browser opened successfully
+          return { success: true };
+        } else {
+          // All automatic methods failed - copy URL to clipboard for manual opening
+          if (openResult.url) {
+            try {
+              clipboard.writeText(openResult.url);
+              console.log('✓ URL copied to clipboard');
+            } catch (clipboardError) {
+              console.warn('Failed to copy to clipboard:', clipboardError);
+            }
           }
+          completeAuthFlow({ restore: true });
+          return {
+            success: true,
+            manualUrl: openResult.url,
+            message: 'URL copied to clipboard! Please paste it into your browser to continue authentication.'
+          };
         }
-        return {
-          success: true,
-          manualUrl: openResult.url,
-          message: 'URL copied to clipboard! Please paste it into your browser to continue authentication.'
-        };
       }
     } else {
       throw new Error('Authentication failed: No auth URL generated');
     }
   } catch (error) {
+    completeAuthFlow({ restore: true });
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('Authentication error:', errorMessage);
     
@@ -751,6 +835,7 @@ ipcMain.handle('cancel-auth', async () => {
 
     // Also cancel the loopback server
     googleCalendarService.cancelAuth();
+    completeAuthFlow({ restore: true });
     return { success: true };
   } catch (error) {
     console.error('Error cancelling auth:', error);
