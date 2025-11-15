@@ -63,6 +63,12 @@
       "out/**/*",
       "assets/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "native/aswebauthsession",
+        "to": "native/aswebauthsession"
+      }
+    ],
     "asar": true,
     "icon": "assets/app-icon.icns",
     "mac": {

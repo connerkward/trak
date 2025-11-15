@@ -89,7 +89,9 @@ function loadASWebAuthSession() {
   if (asWebAuthSession) return; // Already loaded
 
   try {
-    const modulePath = path.join(__dirname, '../../native/aswebauthsession');
+    const modulePath = app.isPackaged
+      ? path.join(process.resourcesPath, 'native', 'aswebauthsession')
+      : path.join(__dirname, '../../native/aswebauthsession');
     asWebAuthSession = require(modulePath);
     console.log('✓ ASWebAuthenticationSession native module loaded');
   } catch (err) {
