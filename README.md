@@ -1,14 +1,19 @@
 # Dingo Track
 
 <div align="center">
-  <a href="https://apps.apple.com/us/app/dingo-track/id6753859165?mt=12">
-    <img src="assets/mac-app-store-badge.svg" alt="Download Dingo Track on the Mac App Store" height="60" />
-  </a>
-  <br/><br/>
   <a href="https://connerkward.github.io/trak/" target="_blank">
     <img src="landing-page/landing-page.png" alt="Dingo Track Landing Page" width="800" />
   </a>
   <p><em>Dingo Track — Mac menu bar time tracking with Google Calendar integration</em></p>
+  <p>
+    <a href="https://apps.apple.com/us/app/dingo-track/id6753859165?mt=12">
+      <img src="assets/mac-app-store-badge.svg" alt="Download Dingo Track on the Mac App Store" height="60" />
+    </a>
+    &nbsp;
+    <a href="https://connerkward.github.io/trak/#download-section">
+      <img src="assets/direct-download-badge.svg" alt="Download Dingo Track DMG directly" height="60" />
+    </a>
+  </p>
 </div>
 
 A Mac menu bar app for time tracking with Google Calendar integration.
